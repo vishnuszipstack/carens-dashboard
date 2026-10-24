@@ -92,6 +92,31 @@ Setup on the phone (once): Android Auto settings → tap **Version** ~10× → �
 The template screen (`car/DashCarScreen.kt`) is kept. It only appears if the app is ever
 installed from the Play Store.
 
+## Car-launcher layout (build 10+)
+
+Inspired by car launchers such as AGAMA Car Launcher. A side rail switches between:
+
+- **Home**: big widgets for speed gauge, map preview with the next turn, music with controls,
+  clock/date/place, weather, trip stats, quick actions (Google Assistant, start/end trip,
+  Home/Work/My car), and a dock of your pinned apps.
+- **Map**: full-screen OpenStreetMap. Search places (Android Geocoder, falling back to
+  Nominatim), or long-press to drop a pin. You get a route preview with time and distance
+  (public OSRM server), then **turn-by-turn navigation** with a green next-turn banner,
+  "then" hint, ETA, spoken prompts (TTS) and automatic rerouting. There are also zoom,
+  follow and heading-up buttons, a speed bubble, *Save as Home/Work/Favourite*, and a
+  *Google Maps* handoff. Routes don't include live traffic.
+- **Music**: big album art, title/artist, progress with seek, ⏮ ⏯ ⏭, volume, the app's queue
+  ("Up next") when it shares one, and shortcuts to your music apps.
+- **Apps**: big-icon drawer. Long-press to pin or unpin apps on the Home dock.
+- **More**: trips & stats (today / week / month / all time, passive 0–60 and 0–100 km/h
+  times, CSV export), fuel log with full-to-full km/l and ₹/km, saved places, Find my car
+  (saved automatically when a trip ends, or with *Park here*), and settings.
+
+Settings → *Choose home app* lets you make the dashboard the phone's launcher.
+
+The car screen (Android Auto) shows the next turn in the title and on the picture while
+navigating.
+
 ## All-in-one dashboard (build 6+)
 
 **Phone** (full screen by default; swipe from the edge to show the system bars):
