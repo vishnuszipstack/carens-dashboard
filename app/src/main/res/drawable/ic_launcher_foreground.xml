@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Speedometer arc with a needle, sized for the 108dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M36,68 A22,22 0 1,1 72,68"
+        android:strokeColor="#2A313C"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M36,68 A22,22 0 0,1 54,32"
+        android:strokeColor="#3DDC97"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,56 L66,42"
+        android:strokeColor="#E8EDF2"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M50,56 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#E8EDF2" />
+</vector>
