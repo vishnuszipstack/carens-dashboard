@@ -58,6 +58,15 @@
             </intent-filter>
         </service>
 
+        <!-- Android Auto media entry point (works when sideloaded). -->
+        <service
+            android:name=".car.DashMediaService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".update.InstallResultReceiver"
             android:exported="false" />

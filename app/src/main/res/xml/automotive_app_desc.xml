@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <automotiveApp>
+    <!-- Media: shown for sideloaded apps when Android Auto's "Unknown sources" is on. -->
+    <uses name="media" />
+    <!-- Template: only shown when installed from the Play Store (Android Auto 17.7+). -->
     <uses name="template" />
 </automotiveApp>

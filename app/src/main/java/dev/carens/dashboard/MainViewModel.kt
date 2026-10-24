@@ -41,8 +41,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { container.settings.update(transform) }
     }
 
-    fun startTrip() = DrivingService.send(getApplication(), DrivingService.ACTION_START_TRIP)
-    fun stopTrip() = DrivingService.send(getApplication(), DrivingService.ACTION_STOP_TRIP)
+    fun startTrip() {
+        DrivingService.send(getApplication(), DrivingService.ACTION_START_TRIP)
+    }
+
+    fun stopTrip() {
+        DrivingService.send(getApplication(), DrivingService.ACTION_STOP_TRIP)
+    }
 
     fun deleteTrip(id: Long) {
         container.appScope.launch { container.trips.delete(id) }

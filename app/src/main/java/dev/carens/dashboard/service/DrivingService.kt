@@ -422,12 +422,16 @@ class DrivingService : Service() {
         /** Trips shorter than this are treated as accidental and discarded. */
         const val MIN_TRIP_M = 50.0
 
-        fun start(context: Context) = send(context, null)
+        fun start(context: Context): Boolean = send(context, null)
 
-        fun send(context: Context, action: String?) {
-            if (!LocationPermissions.hasPrecise(context)) return
+        /**
+         * Returns false if the service couldn't be started: no location permission,
+         * or Android refused a foreground-service start from the background.
+         */
+        fun send(context: Context, action: String?): Boolean {
+            if (!LocationPermissions.hasPrecise(context)) return false
             val intent = Intent(context, DrivingService::class.java).setAction(action)
-            runCatching { ContextCompat.startForegroundService(context, intent) }
+            return runCatching { ContextCompat.startForegroundService(context, intent) }.isSuccess
         }
     }
 }

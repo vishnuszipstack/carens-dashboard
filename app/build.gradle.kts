@@ -92,6 +92,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     implementation("androidx.car.app:app:1.7.0")
+    implementation("androidx.media:media:1.7.0")
 
     testImplementation("junit:junit:4.13.2")
     // Real org.json for unit tests (the Android one is a stub on the JVM).

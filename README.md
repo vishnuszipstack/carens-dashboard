@@ -72,23 +72,25 @@ permission is needed.
 
 ## Android Auto
 
-`car/DashCarAppService.kt` adds a template-based car screen: live GPS speed, trip distance and
-duration, moving time, average/max speed, heading and elevation, plus a Start/End trip button. It
-uses the same `TelemetryHub` data as the phone, and opening it on the car starts GPS recording
-even if the phone app wasn't opened.
+Android Auto 17.7+ no longer shows **sideloaded template apps**, even with "Unknown sources" on.
+It still shows sideloaded **media apps**, so the car view is a media app
+(`car/DashMediaService.kt`):
 
-Android Auto only lets apps use fixed templates, so it's a text read-out, not a gauge. It
-refreshes about every 2 seconds. Row titles stay fixed so refreshes don't use up Android Auto's
-template quota.
+- **Now playing** shows a drawn speedometer as the artwork. The title is speed, the subtitle is
+  trip distance · duration, and the third line is avg/max speed or GPS status.
+- **Start trip / End trip** appear as custom buttons. Play opens the dashboard; Pause hands
+  Android Auto's now-playing widget back to your music. No audio is played and audio focus is
+  never taken.
+- **Browse** has "Live dashboard" and "Recent trips" (last 20).
+- Opening it on the car starts GPS/trip recording. If Android refuses to start GPS from the
+  background, it shows "Open app on phone". Open the phone app once and it continues.
 
-Because the app isn't from the Play Store, Android Auto hides it until you allow unknown sources:
+Setup on the phone (once): Android Auto settings → tap **Version** ~10× → ⋮ → Developer settings
+→ **Unknown sources** on. Then reconnect. *Carens Dashboard* appears with the media apps. Check
+**Customize launcher** if it doesn't.
 
-1. On the phone: Settings → Connected devices → Android Auto (on Vivo, search "Android Auto").
-2. Scroll to the bottom and tap **Version** about 10 times, then accept to enable developer mode.
-3. Top-right ⋮ menu → **Developer settings** → turn on **Unknown sources**.
-4. Reconnect to the car. "Carens Dashboard" appears in the app launcher on the car screen.
-
-It's declared as a POI-category app. That's fine for sideloading but wouldn't pass Play Store review.
+The template screen (`car/DashCarScreen.kt`) is kept. It only appears if the app is ever
+installed from the Play Store.
 
 ## Updates
 
