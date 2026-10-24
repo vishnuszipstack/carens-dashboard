@@ -129,6 +129,14 @@ fun AppRoot(vm: MainViewModel) {
                 }
                 ImmersiveMode(enabled = settings.fullScreen)
 
+                val launchScreen by vm.launchScreen.collectAsStateWithLifecycle()
+                androidx.compose.runtime.LaunchedEffect(launchScreen) {
+                    val target = launchScreen ?: return@LaunchedEffect
+                    Tab.entries.firstOrNull { it.name == target }?.let { tab = it; more = MorePage.HUB }
+                    MorePage.entries.firstOrNull { it.name == target && it != MorePage.HUB }?.let { tab = Tab.MORE; more = it }
+                    vm.launchScreen.value = null
+                }
+
                 val musicActions = remember(vm) {
                     MusicActions(
                         grantAccess = { runCatching { context.startActivity(vm.music.accessSettingsIntent()) } },
@@ -241,6 +249,10 @@ fun AppRoot(vm: MainViewModel) {
                                     onOpen = { more = it },
                                     onFindCar = { parking?.let { goTo(Destination("Your parked car", null, it.point)) } },
                                     onParkHere = vm::parkHere,
+                                )
+                                MorePage.CAR -> CarPreviewScreen(
+                                    telemetry, settings, weather, place, nowPlaying, navState, vm.mapTiles,
+                                    onBack = { more = MorePage.HUB },
                                 )
                                 MorePage.TRIPS -> TripsScreen(vm, settings.unit, onBack = { more = MorePage.HUB })
                                 MorePage.FUEL -> FuelScreen(fuel, vm::addFuel, vm::deleteFuel, onBack = { more = MorePage.HUB })

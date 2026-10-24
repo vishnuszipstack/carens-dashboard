@@ -315,77 +315,23 @@ class DashMediaService : MediaBrowserServiceCompat() {
         val hasPermission = LocationPermissions.hasPrecise(this)
         val m = music
 
-        val speed = t.gpsSpeedKmh?.let { u.fromKmh(it).roundToInt() }
-        val over = s.speedWarningEnabled && (t.gpsSpeedKmh ?: 0.0) > s.speedWarningKmh
-        val status = when {
-            !hasPermission -> "Location needed"
-            !t.serviceRunning -> "Open app on phone"
-            t.locationError != null -> "Location off"
-            !t.hasFix -> "Waiting for GPS"
-            t.isStale -> "GPS lost"
-            t.gpsQuality == GpsQuality.POOR -> "Weak GPS"
-            else -> null
-        }
-
         val trip = t.trip
-        val tripLine = trip?.let {
-            "Trip ${Format.distance(it.distanceM, u)} ${u.distanceLabel} · ${Format.duration(it.elapsedMs)}" +
-                (it.avgMovingKmh?.let { a -> " · avg ${u.fromKmh(a).roundToInt()}" } ?: "")
-        } ?: if (s.autoTrip) "No trip · starts when you drive" else "No trip running"
-        val musicLine = m?.let { listOfNotNull(it.title, it.artist).joinToString(" – ") }
-        val clock = DateFormat.getTimeFormat(this).format(Date())
-        val w = weather
-        val n = nav
-        val imperial = u == dev.carens.dashboard.settings.SpeedUnit.MPH
-        val navLine = n?.let {
-            when {
-                it.arrived -> "🏁 Arrived · ${it.destination.name}"
-                it.rerouting -> "Rerouting…"
-                else -> "${it.nextStep.maneuver.glyph} ${dev.carens.dashboard.nav.navDistance(it.distanceToNextM, imperial)}" +
-                    (it.nextStep.roadName.takeIf { r -> r.isNotBlank() }?.let { r -> " · $r" } ?: "")
-            }
-        }
+        val content = CarView.build(this, t, s, weather, place, m, nav, mapBitmap, hasPermission)
+        val title = content.title
+        val subtitle = content.subtitle
+        val third = content.third
+        val artKey = content.artKey
 
         // Redraw the picture only when something on it changes, at most once a second.
         val now = SystemClock.elapsedRealtime()
-        val artKey = listOf(speed, over, status, clock, w?.tempLabel, w?.code, tripLine, musicLine, place?.label, t.bearingDegrees?.roundToInt()?.div(10), u.name, navLine)
-            .joinToString("|")
         if (art == null || (artKey != lastArtKey && (force || now - lastArtMs >= 1_000))) {
             lastArtKey = artKey
             lastArtMs = now
-            val full = GaugeArt.render(
-                DashArtModel(
-                    speed = speed,
-                    unitLabel = u.label,
-                    fraction = ((speed ?: 0) / u.gaugeMax).toFloat(),
-                    over = over,
-                    status = status,
-                    clock = clock,
-                    weatherEmoji = w?.emoji,
-                    weatherTemp = w?.tempLabel,
-                    tripLine = tripLine,
-                    musicLine = musicLine,
-                    placeLine = if (navLine != null) null else place?.label,
-                    navLine = navLine,
-                    bearing = t.bearingDegrees,
-                    map = mapBitmap,
-                ),
-            )
+            val full = GaugeArt.render(content.model)
             // ~320 KB keeps each update well under the binder transaction limit.
             art = Bitmap.createScaledBitmap(full, ART_PX, ART_PX, true).copy(Bitmap.Config.RGB_565, false)
             full.recycle()
         }
-
-        val title = if (n != null && !n.arrived) {
-            "${dev.carens.dashboard.nav.navDistance(n.distanceToNextM, imperial)} · ${n.nextStep.instruction}"
-        } else {
-            buildString {
-                append(speed?.let { "$it ${u.label}" } ?: "-- ${u.label}")
-                w?.let { append("  ·  ${it.tempLabel} ${it.description}") }
-            }
-        }
-        val subtitle = musicLine?.let { "$tripLine  ·  ♪ $it" } ?: tripLine
-        val third = place?.label ?: status ?: "GPS speed"
 
         val textKey = "$title|$subtitle|$third|$artKey|${trip != null}|$shown|${m?.isPlaying}"
         if (force || textKey != lastTextKey) {

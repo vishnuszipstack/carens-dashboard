@@ -16,6 +16,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent { AppRoot(vm) }
+        vm.handleLaunch(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        vm.handleLaunch(intent)
     }
 
     override fun onStart() {

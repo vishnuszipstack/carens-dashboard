@@ -153,6 +153,42 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // --- Apps ---------------------------------------------------------------------
 
     val apps: AppsRepository = container.apps
+    val mapTiles = container.mapTiles
+
+    // --- Launch extras (shortcuts and automated screenshots) -------------------------
+
+    /** Screen requested by the launching intent, e.g. "MAP" or "FUEL"; consumed by the UI. */
+    val launchScreen = MutableStateFlow<String?>(null)
+
+    fun handleLaunch(intent: Intent?) {
+        val extras = intent?.extras ?: return
+        extras.getString("screen")?.let { launchScreen.value = it.uppercase() }
+        val lat = extras.getString("dest_lat")?.toDoubleOrNull()
+        val lon = extras.getString("dest_lon")?.toDoubleOrNull()
+        if (lat != null && lon != null) {
+            val dest = Destination(extras.getString("dest_name") ?: "Destination", null, LatLon(lat, lon))
+            val autostart = extras.getString("autostart") == "true"
+            viewModelScope.launch {
+                // Preview needs a GPS fix; wait briefly for one.
+                var waited = 0
+                while (telemetry.value.latitude == null && waited < 30) {
+                    delay(1_000)
+                    waited++
+                }
+                navigator.preview(dest)
+                if (autostart) {
+                    repeat(30) {
+                        val p = routePreview.value
+                        if (p is dev.carens.dashboard.nav.Navigator.Preview.Ready) {
+                            startNavigation(p.destination, p.route)
+                            return@launch
+                        }
+                        delay(1_000)
+                    }
+                }
+            }
+        }
+    }
 
     // --- Updates -----------------------------------------------------------------
 

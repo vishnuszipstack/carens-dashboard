@@ -69,7 +69,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-enum class MorePage { HUB, TRIPS, FUEL, PLACES, SETTINGS }
+enum class MorePage { HUB, TRIPS, FUEL, PLACES, SETTINGS, CAR }
 
 private data class Tile(val page: MorePage, val icon: ImageVector, val title: String, val subtitle: String)
 
@@ -88,6 +88,7 @@ fun MoreHub(
         Tile(MorePage.TRIPS, Icons.Filled.QueryStats, "Trips & stats", "Today, week, month, 0–100 times, export"),
         Tile(MorePage.FUEL, Icons.Filled.LocalGasStation, "Fuel log", fuelSummary),
         Tile(MorePage.PLACES, Icons.Filled.Star, "Saved places", if (placesCount == 0) "Home, Work and favourites" else "$placesCount saved"),
+        Tile(MorePage.CAR, Icons.Filled.DirectionsCar, "Android Auto preview", "See what the car screen shows"),
         Tile(MorePage.SETTINGS, if (updateAvailable) Icons.Filled.SystemUpdate else Icons.Filled.Settings, "Settings", if (updateAvailable) "Update available" else "Display, units, voice, updates"),
     )
     Column(Modifier.fillMaxSize()) {
