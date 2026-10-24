@@ -1,16 +1,32 @@
 package dev.carens.dashboard.ui
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.SpaceDashboard
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import dev.carens.dashboard.apps.AppsRepository
+import dev.carens.dashboard.nav.Destination
+import dev.carens.dashboard.nav.LatLon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -52,7 +68,13 @@ import dev.carens.dashboard.location.LocationPermissions
 import dev.carens.dashboard.service.DrivingService
 import dev.carens.dashboard.settings.ThemeMode
 
-private enum class Screen { DASHBOARD, TRIPS, SETTINGS }
+private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    HOME("Home", Icons.Filled.SpaceDashboard),
+    MAP("Map", Icons.Filled.Map),
+    MUSIC("Music", Icons.Filled.LibraryMusic),
+    APPS("Apps", Icons.Filled.Apps),
+    MORE("More", Icons.Filled.MoreHoriz),
+}
 
 @Composable
 fun AppRoot(vm: MainViewModel) {
@@ -63,6 +85,13 @@ fun AppRoot(vm: MainViewModel) {
     val place by vm.place.collectAsStateWithLifecycle()
     val nowPlaying by vm.nowPlaying.collectAsStateWithLifecycle()
     val musicAccess by vm.musicAccess.collectAsStateWithLifecycle()
+    val navState by vm.navState.collectAsStateWithLifecycle()
+    val preview by vm.routePreview.collectAsStateWithLifecycle()
+    val search by vm.search.collectAsStateWithLifecycle()
+    val saved by vm.savedPlaces.collectAsStateWithLifecycle()
+    val recent by vm.recentPlaces.collectAsStateWithLifecycle()
+    val parking by vm.parking.collectAsStateWithLifecycle()
+    val fuel by vm.fuelEntries.collectAsStateWithLifecycle()
     val night by rememberIsNight()
     val dark = when (settings.themeMode) {
         ThemeMode.DARK -> true
@@ -80,7 +109,6 @@ fun AppRoot(vm: MainViewModel) {
             granted = LocationPermissions.hasPrecise(context)
             if (granted) DrivingService.start(context)
         }
-        // Picks up a grant made in system settings.
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
             granted = LocationPermissions.hasPrecise(context)
             if (granted) DrivingService.start(context)
@@ -94,58 +122,153 @@ fun AppRoot(vm: MainViewModel) {
                     onOpenSettings = { openAppSettings(context) },
                 )
             } else {
-                var screen by rememberSaveable { mutableStateOf(Screen.DASHBOARD) }
-                BackHandler(enabled = screen != Screen.DASHBOARD) { screen = Screen.DASHBOARD }
-                ImmersiveMode(enabled = settings.fullScreen && screen == Screen.DASHBOARD)
+                var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+                var more by rememberSaveable { mutableStateOf(MorePage.HUB) }
+                BackHandler(enabled = tab != Tab.HOME || more != MorePage.HUB) {
+                    if (tab == Tab.MORE && more != MorePage.HUB) more = MorePage.HUB else tab = Tab.HOME
+                }
+                ImmersiveMode(enabled = settings.fullScreen)
 
-                when (screen) {
-                    Screen.DASHBOARD -> DashboardScreen(
-                        telemetry = telemetry,
-                        settings = settings,
-                        extras = DashExtras(
-                            weather = weather,
-                            place = place,
-                            nowPlaying = nowPlaying,
-                            musicAccess = musicAccess,
-                            dark = dark,
-                        ),
-                        music = remember(vm) {
-                            MusicActions(
-                                grantAccess = {
-                                    runCatching { context.startActivity(vm.music.accessSettingsIntent()) }
+                val musicActions = remember(vm) {
+                    MusicActions(
+                        grantAccess = { runCatching { context.startActivity(vm.music.accessSettingsIntent()) } },
+                        previous = { vm.music.previous() },
+                        playPause = { vm.music.playPause() },
+                        next = { vm.music.next() },
+                    )
+                }
+                val goTo: (Destination) -> Unit = { dest ->
+                    vm.previewRoute(dest)
+                    tab = Tab.MAP
+                }
+                val dockPackages = settings.dockApps.ifEmpty {
+                    AppsRepository.DEFAULT_DOCK.filter { vm.apps.isInstalled(it) }
+                }
+                val dockApps = remember(dockPackages) { dockPackages.map { vm.apps.app(it) } }
+                val pos = telemetry.latitude?.let { LatLon(it, telemetry.longitude!!) }
+
+                Row(Modifier.fillMaxSize()) {
+                    NavigationRail(
+                        modifier = if (settings.fullScreen) Modifier else Modifier.safeDrawingPadding(),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Spacer(Modifier.weight(1f))
+                        Tab.entries.forEach { t ->
+                            NavigationRailItem(
+                                selected = tab == t,
+                                onClick = {
+                                    if (t == Tab.MORE && tab == Tab.MORE) more = MorePage.HUB
+                                    tab = t
                                 },
-                                previous = { vm.music.previous() },
-                                playPause = { vm.music.playPause() },
-                                next = { vm.music.next() },
+                                icon = {
+                                    val badge = (t == Tab.MAP && navState != null) ||
+                                        (t == Tab.MORE && updateState is dev.carens.dashboard.update.UpdateState.Available)
+                                    BadgedBox(badge = { if (badge) Badge() }) {
+                                        Icon(t.icon, contentDescription = t.label, modifier = Modifier.size(30.dp))
+                                    }
+                                },
+                                label = { Text(t.label, fontSize = 13.sp) },
+                                modifier = Modifier.padding(vertical = 6.dp),
                             )
-                        },
-                        onStartTrip = vm::startTrip,
-                        onStopTrip = vm::stopTrip,
-                        onNavigate = { openMaps(context, telemetry.latitude, telemetry.longitude) },
-                        onOpenTrips = { screen = Screen.TRIPS },
-                        onOpenSettings = { screen = Screen.SETTINGS },
-                    )
-                    Screen.TRIPS -> TripsScreen(
-                        vm = vm,
-                        unit = settings.unit,
-                        onBack = { screen = Screen.DASHBOARD },
-                    )
-                    Screen.SETTINGS -> SettingsScreen(
-                        settings = settings,
-                        speedKmh = telemetry.gpsSpeedKmh,
-                        onChange = vm::updateSettings,
-                        onDeleteAllTrips = vm::deleteAllTrips,
-                        update = UpdateUi(
-                            state = updateState,
-                            versionName = vm.updater.currentVersionName,
-                            onCheck = vm::checkForUpdate,
-                            onInstall = vm::installUpdate,
-                            onAllowInstalls = {
-                                runCatching { context.startActivity(vm.updater.installPermissionIntent()) }
-                            },
-                        ),
-                        onBack = { screen = Screen.DASHBOARD },
-                    )
+                        }
+                        Spacer(Modifier.weight(1f))
+                    }
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight()
+                            .then(if (settings.fullScreen) Modifier else Modifier.safeDrawingPadding()),
+                    ) {
+                        when (tab) {
+                            Tab.HOME -> HomeScreen(
+                                d = HomeData(
+                                    telemetry = telemetry,
+                                    settings = settings,
+                                    weather = weather,
+                                    place = place,
+                                    nowPlaying = nowPlaying,
+                                    musicAccess = musicAccess,
+                                    nav = navState,
+                                    saved = saved,
+                                    parking = parking,
+                                    dock = dockApps,
+                                    dark = dark,
+                                ),
+                                music = musicActions,
+                                a = HomeActions(
+                                    openMap = { tab = Tab.MAP },
+                                    openMusic = { tab = Tab.MUSIC },
+                                    openApps = { tab = Tab.APPS },
+                                    openTrips = { tab = Tab.MORE; more = MorePage.TRIPS },
+                                    startTrip = vm::startTrip,
+                                    stopTrip = vm::stopTrip,
+                                    assistant = { vm.apps.assistant() },
+                                    goTo = { goTo(it.toDestination()) },
+                                    findCar = { parking?.let { goTo(Destination("Your parked car", null, it.point)) } },
+                                    launchApp = { vm.apps.launch(it) },
+                                ),
+                            )
+                            Tab.MAP -> MapScreen(
+                                d = MapData(telemetry, settings, dark, search, preview, navState, saved, recent, parking),
+                                a = MapActions(
+                                    search = vm::search,
+                                    clearSearch = vm::clearSearch,
+                                    preview = vm::previewRoute,
+                                    cancelPreview = vm::cancelPreview,
+                                    start = vm::startNavigation,
+                                    stop = vm::stopNavigation,
+                                    save = vm::savePlace,
+                                    openInGoogleMaps = vm::openInGoogleMaps,
+                                    toggleVoice = { vm.updateSettings { it.copy(voiceGuidance = !it.voiceGuidance) } },
+                                    toggleHeadingUp = { vm.updateSettings { it.copy(mapHeadingUp = !it.mapHeadingUp) } },
+                                    parkHere = vm::parkHere,
+                                ),
+                            )
+                            Tab.MUSIC -> MusicScreen(nowPlaying, musicAccess, vm.music, musicActions.grantAccess)
+                            Tab.APPS -> AppsScreen(vm.apps, dockPackages) { pkg ->
+                                vm.updateSettings { s ->
+                                    val current = s.dockApps.ifEmpty { dockPackages }
+                                    s.copy(dockApps = if (pkg in current) current - pkg else current + pkg)
+                                }
+                            }
+                            Tab.MORE -> when (more) {
+                                MorePage.HUB -> MoreHub(
+                                    fuelSummary = dev.carens.dashboard.fuel.FuelMath.summarize(fuel).averageKmPerLitre
+                                        ?.let { String.format(java.util.Locale.US, "Average %.1f km/l", it) }
+                                        ?: "Track fill-ups and mileage",
+                                    placesCount = saved.size,
+                                    parking = parking,
+                                    position = pos,
+                                    updateAvailable = updateState is dev.carens.dashboard.update.UpdateState.Available,
+                                    onOpen = { more = it },
+                                    onFindCar = { parking?.let { goTo(Destination("Your parked car", null, it.point)) } },
+                                    onParkHere = vm::parkHere,
+                                )
+                                MorePage.TRIPS -> TripsScreen(vm, settings.unit, onBack = { more = MorePage.HUB })
+                                MorePage.FUEL -> FuelScreen(fuel, vm::addFuel, vm::deleteFuel, onBack = { more = MorePage.HUB })
+                                MorePage.PLACES -> PlacesScreen(
+                                    saved,
+                                    onGo = { goTo(it.toDestination()) },
+                                    onRemove = vm::removePlace,
+                                    onBack = { more = MorePage.HUB },
+                                )
+                                MorePage.SETTINGS -> SettingsScreen(
+                                    settings = settings,
+                                    speedKmh = telemetry.gpsSpeedKmh,
+                                    onChange = vm::updateSettings,
+                                    onDeleteAllTrips = vm::deleteAllTrips,
+                                    update = UpdateUi(
+                                        state = updateState,
+                                        versionName = vm.updater.currentVersionName,
+                                        onCheck = vm::checkForUpdate,
+                                        onInstall = vm::installUpdate,
+                                        onAllowInstalls = {
+                                            runCatching { context.startActivity(vm.updater.installPermissionIntent()) }
+                                        },
+                                    ),
+                                    onBack = { more = MorePage.HUB },
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -223,19 +346,4 @@ private fun PermissionScreen(onRequest: () -> Unit, onOpenSettings: () -> Unit) 
 private fun openAppSettings(context: Context) {
     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
     runCatching { context.startActivity(intent) }
-}
-
-/** Hands off to Google Maps (centered on the current position); falls back to any map app. */
-private fun openMaps(context: Context, lat: Double?, lon: Double?) {
-    val uri = if (lat != null && lon != null) Uri.parse("geo:$lat,$lon?z=15") else Uri.parse("geo:0,0")
-    val maps = Intent(Intent.ACTION_VIEW, uri).setPackage("com.google.android.apps.maps")
-    try {
-        context.startActivity(maps)
-    } catch (_: ActivityNotFoundException) {
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(context, "No maps app installed", Toast.LENGTH_SHORT).show()
-        }
-    }
 }

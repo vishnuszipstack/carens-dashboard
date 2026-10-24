@@ -26,6 +26,8 @@ data class DashArtModel(
     val tripLine: String,
     val musicLine: String?,
     val placeLine: String?,
+    /** e.g. "↰ 300 m · MG Road" while navigating. */
+    val navLine: String? = null,
     val bearing: Float?,
     val map: Bitmap?,
 )
@@ -176,7 +178,8 @@ object GaugeArt {
         val x = r.left + 20f
         val w = r.width() - 40f
         val lines = listOfNotNull(
-            Triple(m.tripLine, text, true),
+            m.navLine?.let { Triple(it, accent, true) },
+            Triple(m.tripLine, text, m.navLine == null),
             m.placeLine?.let { Triple("📍 $it", muted, false) },
             m.musicLine?.let { Triple("♪ $it", accent, false) },
         ).take(3)

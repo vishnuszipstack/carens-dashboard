@@ -62,6 +62,7 @@ class DashMediaService : MediaBrowserServiceCompat() {
     private var weather: WeatherInfo? = null
     private var place: PlaceInfo? = null
     private var music: NowPlaying? = null
+    private var nav: dev.carens.dashboard.nav.NavState? = null
     private var serviceStarted = false
 
     /**
@@ -114,6 +115,12 @@ class DashMediaService : MediaBrowserServiceCompat() {
                     maybeUpdateMap()
                     publish()
                 }
+        }
+        scope.launch {
+            container.navigator.state.collect {
+                nav = it
+                publish()
+            }
         }
         // The clock and "GPS lost" state change even when nothing is emitted.
         scope.launch {
@@ -328,10 +335,20 @@ class DashMediaService : MediaBrowserServiceCompat() {
         val musicLine = m?.let { listOfNotNull(it.title, it.artist).joinToString(" – ") }
         val clock = DateFormat.getTimeFormat(this).format(Date())
         val w = weather
+        val n = nav
+        val imperial = u == dev.carens.dashboard.settings.SpeedUnit.MPH
+        val navLine = n?.let {
+            when {
+                it.arrived -> "🏁 Arrived · ${it.destination.name}"
+                it.rerouting -> "Rerouting…"
+                else -> "${it.nextStep.maneuver.glyph} ${dev.carens.dashboard.nav.navDistance(it.distanceToNextM, imperial)}" +
+                    (it.nextStep.roadName.takeIf { r -> r.isNotBlank() }?.let { r -> " · $r" } ?: "")
+            }
+        }
 
         // Redraw the picture only when something on it changes, at most once a second.
         val now = SystemClock.elapsedRealtime()
-        val artKey = listOf(speed, over, status, clock, w?.tempLabel, w?.code, tripLine, musicLine, place?.label, t.bearingDegrees?.roundToInt()?.div(10), u.name)
+        val artKey = listOf(speed, over, status, clock, w?.tempLabel, w?.code, tripLine, musicLine, place?.label, t.bearingDegrees?.roundToInt()?.div(10), u.name, navLine)
             .joinToString("|")
         if (art == null || (artKey != lastArtKey && (force || now - lastArtMs >= 1_000))) {
             lastArtKey = artKey
@@ -348,7 +365,8 @@ class DashMediaService : MediaBrowserServiceCompat() {
                     weatherTemp = w?.tempLabel,
                     tripLine = tripLine,
                     musicLine = musicLine,
-                    placeLine = place?.label,
+                    placeLine = if (navLine != null) null else place?.label,
+                    navLine = navLine,
                     bearing = t.bearingDegrees,
                     map = mapBitmap,
                 ),
@@ -358,9 +376,13 @@ class DashMediaService : MediaBrowserServiceCompat() {
             full.recycle()
         }
 
-        val title = buildString {
-            append(speed?.let { "$it ${u.label}" } ?: "-- ${u.label}")
-            w?.let { append("  ·  ${it.tempLabel} ${it.description}") }
+        val title = if (n != null && !n.arrived) {
+            "${dev.carens.dashboard.nav.navDistance(n.distanceToNextM, imperial)} · ${n.nextStep.instruction}"
+        } else {
+            buildString {
+                append(speed?.let { "$it ${u.label}" } ?: "-- ${u.label}")
+                w?.let { append("  ·  ${it.tempLabel} ${it.description}") }
+            }
         }
         val subtitle = musicLine?.let { "$tripLine  ·  ♪ $it" } ?: tripLine
         val third = place?.label ?: status ?: "GPS speed"

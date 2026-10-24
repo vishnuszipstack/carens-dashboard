@@ -38,7 +38,27 @@ data class NowPlaying(
     val isPlaying: Boolean,
     val art: Bitmap?,
     val canSkip: Boolean,
-)
+    val album: String? = null,
+    val durationMs: Long = 0,
+    /** Position at [positionUpdatedAt] (elapsedRealtime); extrapolate with [speed] while playing. */
+    val positionMs: Long = 0,
+    val positionUpdatedAt: Long = 0,
+    val speed: Float = 1f,
+    val canSeek: Boolean = false,
+    val queue: List<QueueEntry> = emptyList(),
+    val activeQueueId: Long = -1,
+) {
+    fun currentPositionMs(nowElapsed: Long): Long {
+        if (!isPlaying || positionUpdatedAt == 0L) return positionMs
+        val p = positionMs + ((nowElapsed - positionUpdatedAt) * speed).toLong()
+        return if (durationMs > 0) p.coerceIn(0, durationMs) else p.coerceAtLeast(0)
+    }
+}
+
+data class QueueEntry(val id: Long, val title: String, val subtitle: String?)
+
+/** An installed app that can play media in the car (it exposes a media browser service). */
+data class MediaApp(val packageName: String, val label: String, val icon: android.graphics.drawable.Drawable?)
 
 /** What's playing in other apps (Spotify, YouTube Music, …), with transport controls. */
 class NowPlayingRepository(private val context: Context) {
@@ -63,6 +83,7 @@ class NowPlayingRepository(private val context: Context) {
     private val controllerCallback = object : MediaController.Callback() {
         override fun onPlaybackStateChanged(state: PlaybackState?) = choose()
         override fun onMetadataChanged(metadata: MediaMetadata?) = choose()
+        override fun onQueueChanged(queue: MutableList<android.media.session.MediaSession.QueueItem>?) = choose()
         override fun onSessionDestroyed() = refresh()
     }
 
@@ -123,7 +144,8 @@ class NowPlayingRepository(private val context: Context) {
         active = pick
         _nowPlaying.value = pick?.let { c ->
             val md = c.metadata!!
-            val actions = c.playbackState?.actions ?: 0L
+            val ps = c.playbackState
+            val actions = ps?.actions ?: 0L
             NowPlaying(
                 title = md.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "",
                 artist = md.getString(MediaMetadata.METADATA_KEY_ARTIST)
@@ -135,6 +157,16 @@ class NowPlayingRepository(private val context: Context) {
                     ?: md.getBitmap(MediaMetadata.METADATA_KEY_ART)
                     ?: md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON),
                 canSkip = actions and PlaybackState.ACTION_SKIP_TO_NEXT != 0L,
+                album = md.getString(MediaMetadata.METADATA_KEY_ALBUM),
+                durationMs = md.getLong(MediaMetadata.METADATA_KEY_DURATION),
+                positionMs = ps?.position ?: 0L,
+                positionUpdatedAt = ps?.lastPositionUpdateTime ?: 0L,
+                speed = ps?.playbackSpeed ?: 1f,
+                canSeek = actions and PlaybackState.ACTION_SEEK_TO != 0L,
+                queue = c.queue.orEmpty().take(50).map { q ->
+                    QueueEntry(q.queueId, q.description.title?.toString() ?: "", q.description.subtitle?.toString())
+                },
+                activeQueueId = ps?.activeQueueItemId ?: -1L,
             )
         }
     }
@@ -153,6 +185,42 @@ class NowPlayingRepository(private val context: Context) {
     fun playPause() {
         val c = active ?: return
         if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause() else c.transportControls.play()
+    }
+
+    fun seekTo(ms: Long) = active?.transportControls?.seekTo(ms)
+    fun playQueueItem(id: Long) = active?.transportControls?.skipToQueueItem(id)
+
+    /** Opens the music app itself on the phone. */
+    fun openApp(packageName: String) {
+        context.packageManager.getLaunchIntentForPackage(packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ?.let { runCatching { context.startActivity(it) } }
+    }
+
+    /** Installed apps that offer car/media playback, for quick switching. */
+    fun mediaApps(): List<MediaApp> {
+        val pm = context.packageManager
+        val intent = Intent("android.media.browse.MediaBrowserService")
+        val services = if (Build.VERSION.SDK_INT >= 33) {
+            pm.queryIntentServices(intent, PackageManager.ResolveInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            pm.queryIntentServices(intent, 0)
+        }
+        return services.map { it.serviceInfo.packageName }
+            .distinct()
+            .filter { it != context.packageName && pm.getLaunchIntentForPackage(it) != null }
+            .map { pkg -> MediaApp(pkg, appLabel(pkg), runCatching { pm.getApplicationIcon(pkg) }.getOrNull()) }
+            .sortedBy { it.label.lowercase() }
+    }
+
+    private val audio = context.getSystemService(android.media.AudioManager::class.java)
+
+    fun volume(): Pair<Int, Int> =
+        audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) to audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+
+    fun setVolume(level: Int) {
+        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, level, 0)
     }
 
     fun play() = active?.transportControls?.play()

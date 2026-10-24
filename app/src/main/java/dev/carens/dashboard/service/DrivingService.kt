@@ -73,6 +73,7 @@ class DrivingService : Service() {
 
     private val filter = SpeedFilter()
     private val detector = AutoTripDetector()
+    private val accel = dev.carens.dashboard.telemetry.AccelTimer()
     private var settings = DashSettings()
 
     private var lastSample: GpsSample? = null
@@ -159,12 +160,31 @@ class DrivingService : Service() {
         displayKmh = rawKmh?.let { filter.update(it) }
 
         active?.tracker?.onSample(s)
+        onAccel(accel.onSample(s.timeMs, rawKmh, reliable && (s.accuracyM ?: 99f) <= 15f))
 
         val decision = detector.onSample(s.timeMs, rawKmh, reliable, active != null)
         if (settings.autoTrip && decision is AutoTripDetector.Decision.Start) {
             startTrip(auto = true, startElapsedMs = decision.sinceElapsedMs)
         }
         publish()
+    }
+
+    private fun onAccel(results: List<dev.carens.dashboard.telemetry.AccelTimer.Result>) {
+        if (results.isEmpty()) return
+        TelemetryHub.lastAccel.value = TelemetryHub.lastAccel.value + results.associate { it.targetKmh to it.ms }
+        container.appScope.launch {
+            container.settings.update { st ->
+                var n = st
+                for (r in results) {
+                    n = when (r.targetKmh) {
+                        60 -> if (n.best060Ms == 0L || r.ms < n.best060Ms) n.copy(best060Ms = r.ms) else n
+                        100 -> if (n.best0100Ms == 0L || r.ms < n.best0100Ms) n.copy(best0100Ms = r.ms) else n
+                        else -> n
+                    }
+                }
+                n
+            }
+        }
     }
 
     private fun onTick() {
@@ -247,6 +267,13 @@ class DrivingService : Service() {
         active = null
         detector.onTripEnded()
         finalizeTrip(trip, endElapsedMs)
+        // Remember where the car was left, for "Find my car".
+        val spot = lastSample
+        if (spot != null && trip.tracker.distanceM >= MIN_TRIP_M) {
+            container.appScope.launch {
+                container.places.setParking(dev.carens.dashboard.nav.LatLon(spot.lat, spot.lon))
+            }
+        }
         updateNotification()
         publish()
         if (!TelemetryHub.anyUiVisible) shutdown()

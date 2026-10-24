@@ -7,6 +7,10 @@ import dev.carens.dashboard.info.MapTiles
 import dev.carens.dashboard.info.NowPlayingRepository
 import dev.carens.dashboard.info.PlaceRepository
 import dev.carens.dashboard.info.WeatherRepository
+import dev.carens.dashboard.fuel.FuelRepository
+import dev.carens.dashboard.nav.Navigator
+import dev.carens.dashboard.nav.RouteService
+import dev.carens.dashboard.places.PlacesRepository
 import dev.carens.dashboard.settings.SettingsRepository
 import dev.carens.dashboard.telemetry.TelemetryHub
 import dev.carens.dashboard.trips.AppDatabase
@@ -16,6 +20,7 @@ import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 
 class DashApp : Application() {
@@ -33,6 +38,12 @@ class DashApp : Application() {
         container.weather.start()
         container.place.start()
         container.music.refresh()
+        container.appScope.launch {
+            container.settings.settings.collect {
+                container.navigator.voiceEnabled = it.voiceGuidance
+                container.navigator.imperial = it.unit == dev.carens.dashboard.settings.SpeedUnit.MPH
+            }
+        }
     }
 }
 
@@ -56,4 +67,11 @@ class AppContainer(context: Context) {
     val place = PlaceRepository(app, appScope, TelemetryHub.telemetry)
     val music = NowPlayingRepository(app)
     val mapTiles = MapTiles(app)
+    val places = PlacesRepository(app)
+    val fuel = FuelRepository(app)
+    val routes = RouteService(app)
+    val apps = dev.carens.dashboard.apps.AppsRepository(app)
+
+    /** Navigation runs on the main thread scope so state updates stay ordered. */
+    val navigator = Navigator(app, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate), routes)
 }

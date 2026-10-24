@@ -116,8 +116,42 @@ fun SettingsScreen(
                 ) { v -> onChange { it.copy(fullScreen = v) } }
             }
             item {
-                SwitchRow("Show map", settings.showMap, enabled, "OpenStreetMap, follows your position.") { v ->
+                SwitchRow("Show map on Home", settings.showMap, enabled, "OpenStreetMap, follows your position.") { v ->
                     onChange { it.copy(showMap = v) }
+                }
+            }
+            item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Column(Modifier.padding(vertical = 4.dp)) {
+                    Text("Use as the phone's home app", fontSize = 16.sp)
+                    Text(
+                        "Like a car launcher: pressing Home opens this dashboard. You can switch back any time in the same setting.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS)
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
+                        },
+                        enabled = enabled,
+                    ) { Text("Choose home app") }
+                }
+            }
+
+            item { SectionTitle("Navigation") }
+            item {
+                SwitchRow("Voice guidance", settings.voiceGuidance, enabled, "Spoken turn instructions while navigating.") { v ->
+                    onChange { it.copy(voiceGuidance = v) }
+                }
+            }
+            item {
+                SwitchRow("Rotate map with direction", settings.mapHeadingUp, enabled, "Heading-up while navigating; north-up otherwise.") { v ->
+                    onChange { it.copy(mapHeadingUp = v) }
                 }
             }
 
@@ -220,15 +254,19 @@ fun SettingsScreen(
 }
 
 @Composable
-fun ScreenHeader(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
+fun ScreenHeader(title: String, onBack: (() -> Unit)?, actions: @Composable () -> Unit = {}) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        if (onBack != null) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        } else {
+            Spacer(Modifier.width(12.dp))
         }
-        Text(title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Text(title, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         actions()
     }
 }

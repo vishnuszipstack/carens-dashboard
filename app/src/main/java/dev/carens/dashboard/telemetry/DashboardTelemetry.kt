@@ -77,7 +77,13 @@ object TelemetryHub {
     /** True while the Android Auto screen is showing on the car display. */
     val carVisible = MutableStateFlow(false)
 
-    val anyUiVisible: Boolean get() = uiVisible.value || carVisible.value
+    /** Most recent 0–60 / 0–100 km/h times from this session (target km/h → ms). */
+    val lastAccel = MutableStateFlow<Map<Int, Long>>(emptyMap())
+
+    /** True while turn-by-turn navigation is running; keeps GPS alive like a visible screen. */
+    val navigating = MutableStateFlow(false)
+
+    val anyUiVisible: Boolean get() = uiVisible.value || carVisible.value || navigating.value
 
     fun publish(t: DashboardTelemetry) {
         _telemetry.value = t

@@ -53,6 +53,14 @@ data class DashSettings(
     /** Hide the status and navigation bars on the dashboard. */
     val fullScreen: Boolean = true,
     val showMap: Boolean = true,
+    val voiceGuidance: Boolean = true,
+    /** Rotate the map so the direction of travel is up. */
+    val mapHeadingUp: Boolean = true,
+    /** Package names in the launcher dock, in order. Empty = suggested defaults. */
+    val dockApps: List<String> = emptyList(),
+    /** Best approximate GPS times, ms; 0 = none yet. */
+    val best060Ms: Long = 0,
+    val best0100Ms: Long = 0,
     val vehicle: VehicleProfile = VehicleProfile(),
 )
 
@@ -70,6 +78,11 @@ class SettingsRepository(private val context: Context) {
         val showEcu = booleanPreferencesKey("show_ecu")
         val fullScreen = booleanPreferencesKey("full_screen")
         val showMap = booleanPreferencesKey("show_map")
+        val voice = booleanPreferencesKey("voice_guidance")
+        val headingUp = booleanPreferencesKey("map_heading_up")
+        val dock = stringPreferencesKey("dock_apps")
+        val best060 = androidx.datastore.preferences.core.longPreferencesKey("best_0_60")
+        val best0100 = androidx.datastore.preferences.core.longPreferencesKey("best_0_100")
         val nickname = stringPreferencesKey("vehicle_nickname")
         val modelYear = stringPreferencesKey("vehicle_model_year")
         val fuel = stringPreferencesKey("vehicle_fuel")
@@ -97,6 +110,11 @@ class SettingsRepository(private val context: Context) {
             showEcuSlots = p[Keys.showEcu] ?: d.showEcuSlots,
             fullScreen = p[Keys.fullScreen] ?: d.fullScreen,
             showMap = p[Keys.showMap] ?: d.showMap,
+            voiceGuidance = p[Keys.voice] ?: d.voiceGuidance,
+            mapHeadingUp = p[Keys.headingUp] ?: d.mapHeadingUp,
+            dockApps = p[Keys.dock]?.split(',')?.filter { it.isNotBlank() } ?: d.dockApps,
+            best060Ms = p[Keys.best060] ?: 0L,
+            best0100Ms = p[Keys.best0100] ?: 0L,
             vehicle = VehicleProfile(
                 nickname = p[Keys.nickname] ?: d.vehicle.nickname,
                 modelYear = p[Keys.modelYear] ?: d.vehicle.modelYear,
@@ -117,6 +135,11 @@ class SettingsRepository(private val context: Context) {
         p[Keys.showEcu] = s.showEcuSlots
         p[Keys.fullScreen] = s.fullScreen
         p[Keys.showMap] = s.showMap
+        p[Keys.voice] = s.voiceGuidance
+        p[Keys.headingUp] = s.mapHeadingUp
+        p[Keys.dock] = s.dockApps.joinToString(",")
+        p[Keys.best060] = s.best060Ms
+        p[Keys.best0100] = s.best0100Ms
         p[Keys.nickname] = s.vehicle.nickname
         p[Keys.modelYear] = s.vehicle.modelYear
         p[Keys.fuel] = s.vehicle.fuelType
