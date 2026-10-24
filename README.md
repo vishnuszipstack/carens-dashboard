@@ -92,6 +92,24 @@ Setup on the phone (once): Android Auto settings → tap **Version** ~10× → �
 The template screen (`car/DashCarScreen.kt`) is kept. It only appears if the app is ever
 installed from the Play Store.
 
+## All-in-one dashboard (build 6+)
+
+**Phone** (full screen by default; swipe from the edge to show the system bars):
+speed gauge, trip stats, live OpenStreetMap that follows the car with a heading arrow, area name,
+weather (Open-Meteo, no key) and what's playing in any music app with ⏮ ⏯ ⏭ controls.
+Music needs **notification access**: tap *Allow notification access* on the music card. That's
+how Android lets an app read other apps' media sessions; notifications themselves are ignored.
+
+**Car** (media app): the now-playing picture packs the speed gauge, a dark mini-map with heading
+arrow, the clock, weather, trip, area name and current song. Play/pause/skip control your music
+app. The first *play* only opens the dashboard. The flag button starts a trip, the square ends it.
+The browse view is a full-width info panel (speed/GPS, trip, weather, place, music) plus recent
+trips.
+
+A sideloaded media app can't be truly full screen on Android Auto or show an interactive map.
+That needs a navigation-category car app, which Android Auto only shows when installed from
+the Play Store.
+
 ## Updates
 
 Settings → **App updates** → *Check for updates* reads the latest GitHub release of

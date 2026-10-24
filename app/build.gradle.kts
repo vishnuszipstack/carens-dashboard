@@ -93,6 +93,7 @@ dependencies {
 
     implementation("androidx.car.app:app:1.7.0")
     implementation("androidx.media:media:1.7.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     testImplementation("junit:junit:4.13.2")
     // Real org.json for unit tests (the Android one is a stub on the JVM).

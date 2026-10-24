@@ -26,6 +26,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val trips: StateFlow<List<TripEntity>> =
         container.trips.finishedTrips.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val weather = container.weather.weather
+    val place = container.place.place
+    val nowPlaying = container.music.nowPlaying
+    val musicAccess = container.music.accessGranted
+    val music = container.music
+
     val updater = container.updater
     val updateState: StateFlow<UpdateState> = updater.state
 

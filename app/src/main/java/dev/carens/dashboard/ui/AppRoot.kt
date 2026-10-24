@@ -42,6 +42,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,6 +59,10 @@ fun AppRoot(vm: MainViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val telemetry by vm.telemetry.collectAsStateWithLifecycle()
     val updateState by vm.updateState.collectAsStateWithLifecycle()
+    val weather by vm.weather.collectAsStateWithLifecycle()
+    val place by vm.place.collectAsStateWithLifecycle()
+    val nowPlaying by vm.nowPlaying.collectAsStateWithLifecycle()
+    val musicAccess by vm.musicAccess.collectAsStateWithLifecycle()
     val night by rememberIsNight()
     val dark = when (settings.themeMode) {
         ThemeMode.DARK -> true
@@ -78,6 +84,7 @@ fun AppRoot(vm: MainViewModel) {
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
             granted = LocationPermissions.hasPrecise(context)
             if (granted) DrivingService.start(context)
+            vm.music.refresh() // picks up a fresh notification-access grant
         }
 
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -89,11 +96,29 @@ fun AppRoot(vm: MainViewModel) {
             } else {
                 var screen by rememberSaveable { mutableStateOf(Screen.DASHBOARD) }
                 BackHandler(enabled = screen != Screen.DASHBOARD) { screen = Screen.DASHBOARD }
+                ImmersiveMode(enabled = settings.fullScreen && screen == Screen.DASHBOARD)
 
                 when (screen) {
                     Screen.DASHBOARD -> DashboardScreen(
                         telemetry = telemetry,
                         settings = settings,
+                        extras = DashExtras(
+                            weather = weather,
+                            place = place,
+                            nowPlaying = nowPlaying,
+                            musicAccess = musicAccess,
+                            dark = dark,
+                        ),
+                        music = remember(vm) {
+                            MusicActions(
+                                grantAccess = {
+                                    runCatching { context.startActivity(vm.music.accessSettingsIntent()) }
+                                },
+                                previous = { vm.music.previous() },
+                                playPause = { vm.music.playPause() },
+                                next = { vm.music.next() },
+                            )
+                        },
                         onStartTrip = vm::startTrip,
                         onStopTrip = vm::stopTrip,
                         onNavigate = { openMaps(context, telemetry.latitude, telemetry.longitude) },
@@ -124,6 +149,24 @@ fun AppRoot(vm: MainViewModel) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ImmersiveMode(enabled: Boolean) {
+    val view = LocalView.current
+    val window = (view.context as? Activity)?.window
+    DisposableEffect(enabled, window) {
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (controller != null) {
+            if (enabled) {
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 }
 

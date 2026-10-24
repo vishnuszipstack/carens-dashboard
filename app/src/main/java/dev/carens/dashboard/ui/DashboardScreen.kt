@@ -1,6 +1,5 @@
 package dev.carens.dashboard.ui
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +39,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,7 +48,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -62,17 +59,36 @@ import dev.carens.dashboard.settings.SpeedUnit
 import dev.carens.dashboard.telemetry.DashboardTelemetry
 import dev.carens.dashboard.telemetry.GpsQuality
 import dev.carens.dashboard.telemetry.VehicleReading
-import java.util.Date
+import dev.carens.dashboard.info.NowPlaying
+import dev.carens.dashboard.info.PlaceInfo
+import dev.carens.dashboard.info.WeatherInfo
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
+
+/** Everything on the dashboard that isn't GPS telemetry. */
+data class DashExtras(
+    val weather: WeatherInfo? = null,
+    val place: PlaceInfo? = null,
+    val nowPlaying: NowPlaying? = null,
+    val musicAccess: Boolean = false,
+    val dark: Boolean = true,
+)
+
+class MusicActions(
+    val grantAccess: () -> Unit,
+    val previous: () -> Unit,
+    val playPause: () -> Unit,
+    val next: () -> Unit,
+)
 
 @Composable
 fun DashboardScreen(
     telemetry: DashboardTelemetry,
     settings: DashSettings,
+    extras: DashExtras,
+    music: MusicActions,
     onStartTrip: () -> Unit,
     onStopTrip: () -> Unit,
     onNavigate: () -> Unit,
@@ -81,8 +97,9 @@ fun DashboardScreen(
 ) {
     var confirmEnd by remember { mutableStateOf(false) }
     val tripActive = telemetry.trip != null
+    val pad = if (settings.fullScreen) Modifier.padding(10.dp) else Modifier.safeDrawingPadding().padding(10.dp)
 
-    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize().then(pad)) {
         val landscape = maxWidth > maxHeight
         val actions = @Composable {
             ActionBar(
@@ -93,24 +110,59 @@ fun DashboardScreen(
                 onOpenSettings = onOpenSettings,
             )
         }
+        val map = @Composable { m: Modifier ->
+            MapCard(
+                lat = telemetry.latitude,
+                lon = telemetry.longitude,
+                bearing = telemetry.bearingDegrees,
+                dark = extras.dark,
+                place = extras.place,
+                modifier = m,
+            )
+        }
+        val weather = @Composable { m: Modifier -> WeatherCard(extras.weather, m) }
+        val musicCard = @Composable { m: Modifier ->
+            MusicCard(
+                nowPlaying = extras.nowPlaying,
+                accessGranted = extras.musicAccess,
+                onGrantAccess = music.grantAccess,
+                onPrevious = music.previous,
+                onPlayPause = music.playPause,
+                onNext = music.next,
+                modifier = m,
+            )
+        }
+
         if (landscape) {
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1.1f).fillMaxHeight()) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(0.95f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TopStrip(telemetry, settings)
                     SpeedHero(telemetry, settings, Modifier.weight(1f))
-                }
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatsGrid(telemetry, settings, columns = 2, fill = true, modifier = Modifier.weight(1f))
+                    StatsGrid(telemetry, settings, columns = 3, fill = false)
                     if (settings.showEcuSlots) EcuStrip(telemetry)
+                }
+                Column(Modifier.weight(1.25f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (settings.showMap) {
+                        map(Modifier.weight(1f).fillMaxWidth())
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                    Row(Modifier.fillMaxWidth().height(96.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        weather(Modifier.weight(1f).fillMaxHeight())
+                        musicCard(Modifier.weight(1.5f).fillMaxHeight())
+                    }
                     actions()
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TopStrip(telemetry, settings)
-                SpeedHero(telemetry, settings, Modifier.weight(1f))
+                SpeedHero(telemetry, settings, Modifier.weight(if (settings.showMap) 0.8f else 1f))
                 StatsGrid(telemetry, settings, columns = 3, fill = false)
                 if (settings.showEcuSlots) EcuStrip(telemetry)
+                if (settings.showMap) map(Modifier.weight(1f).fillMaxWidth())
+                weather(Modifier.fillMaxWidth().height(80.dp))
+                musicCard(Modifier.fillMaxWidth().height(80.dp))
                 actions()
             }
         }
@@ -133,14 +185,7 @@ fun DashboardScreen(
 
 @Composable
 private fun TopStrip(telemetry: DashboardTelemetry, settings: DashSettings) {
-    val context = LocalContext.current
-    val clock by produceState(initialValue = "") {
-        val fmt = DateFormat.getTimeFormat(context)
-        while (true) {
-            value = fmt.format(Date())
-            delay(10_000)
-        }
-    }
+    val (clock, date) = rememberClock()
     val title = settings.vehicle.nickname.ifBlank { "Kia Carens" }.uppercase()
     Row(
         Modifier.fillMaxWidth().height(36.dp),
@@ -164,7 +209,9 @@ private fun TopStrip(telemetry: DashboardTelemetry, settings: DashSettings) {
         }
         GpsBadge(telemetry.gpsQuality)
         Spacer(Modifier.width(14.dp))
-        Text(clock, style = MaterialTheme.typography.labelLarge.merge(Tabular))
+        Text(date, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(10.dp))
+        Text(clock, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, style = Tabular)
     }
 }
 
@@ -278,7 +325,7 @@ private fun StatsGrid(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         stats.chunked(columns).forEach { row ->
             Row(
-                Modifier.fillMaxWidth().then(if (fill) Modifier.weight(1f) else Modifier.height(84.dp)),
+                Modifier.fillMaxWidth().then(if (fill) Modifier.weight(1f) else Modifier.height(74.dp)),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 row.forEach { StatTile(it, Modifier.weight(1f).fillMaxHeight()) }
@@ -306,7 +353,7 @@ private fun StatTile(stat: Stat, modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     stat.value,
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.SemiBold,
                     style = Tabular,
                     maxLines = 1,

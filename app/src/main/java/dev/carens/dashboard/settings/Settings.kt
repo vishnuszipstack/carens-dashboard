@@ -50,6 +50,9 @@ data class DashSettings(
     val themeMode: ThemeMode = ThemeMode.AUTO,
     val keepScreenOn: Boolean = true,
     val showEcuSlots: Boolean = false,
+    /** Hide the status and navigation bars on the dashboard. */
+    val fullScreen: Boolean = true,
+    val showMap: Boolean = true,
     val vehicle: VehicleProfile = VehicleProfile(),
 )
 
@@ -65,6 +68,8 @@ class SettingsRepository(private val context: Context) {
         val theme = stringPreferencesKey("theme")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val showEcu = booleanPreferencesKey("show_ecu")
+        val fullScreen = booleanPreferencesKey("full_screen")
+        val showMap = booleanPreferencesKey("show_map")
         val nickname = stringPreferencesKey("vehicle_nickname")
         val modelYear = stringPreferencesKey("vehicle_model_year")
         val fuel = stringPreferencesKey("vehicle_fuel")
@@ -90,6 +95,8 @@ class SettingsRepository(private val context: Context) {
             themeMode = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: d.themeMode,
             keepScreenOn = p[Keys.keepScreenOn] ?: d.keepScreenOn,
             showEcuSlots = p[Keys.showEcu] ?: d.showEcuSlots,
+            fullScreen = p[Keys.fullScreen] ?: d.fullScreen,
+            showMap = p[Keys.showMap] ?: d.showMap,
             vehicle = VehicleProfile(
                 nickname = p[Keys.nickname] ?: d.vehicle.nickname,
                 modelYear = p[Keys.modelYear] ?: d.vehicle.modelYear,
@@ -108,6 +115,8 @@ class SettingsRepository(private val context: Context) {
         p[Keys.theme] = s.themeMode.name
         p[Keys.keepScreenOn] = s.keepScreenOn
         p[Keys.showEcu] = s.showEcuSlots
+        p[Keys.fullScreen] = s.fullScreen
+        p[Keys.showMap] = s.showMap
         p[Keys.nickname] = s.vehicle.nickname
         p[Keys.modelYear] = s.vehicle.modelYear
         p[Keys.fuel] = s.vehicle.fuelType

@@ -107,6 +107,19 @@ fun SettingsScreen(
             item {
                 SwitchRow("Keep screen on", settings.keepScreenOn, enabled) { v -> onChange { it.copy(keepScreenOn = v) } }
             }
+            item {
+                SwitchRow(
+                    "Full screen dashboard",
+                    settings.fullScreen,
+                    enabled,
+                    "Hides the status and navigation bars. Swipe from the edge to show them briefly.",
+                ) { v -> onChange { it.copy(fullScreen = v) } }
+            }
+            item {
+                SwitchRow("Show map", settings.showMap, enabled, "OpenStreetMap, follows your position.") { v ->
+                    onChange { it.copy(showMap = v) }
+                }
+            }
 
             item { SectionTitle("Speed warning") }
             item {
