@@ -56,6 +56,7 @@ private enum class Screen { DASHBOARD, TRIPS, SETTINGS }
 fun AppRoot(vm: MainViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val telemetry by vm.telemetry.collectAsStateWithLifecycle()
+    val updateState by vm.updateState.collectAsStateWithLifecycle()
     val night by rememberIsNight()
     val dark = when (settings.themeMode) {
         ThemeMode.DARK -> true
@@ -109,6 +110,15 @@ fun AppRoot(vm: MainViewModel) {
                         speedKmh = telemetry.gpsSpeedKmh,
                         onChange = vm::updateSettings,
                         onDeleteAllTrips = vm::deleteAllTrips,
+                        update = UpdateUi(
+                            state = updateState,
+                            versionName = vm.updater.currentVersionName,
+                            onCheck = vm::checkForUpdate,
+                            onInstall = vm::installUpdate,
+                            onAllowInstalls = {
+                                runCatching { context.startActivity(vm.updater.installPermissionIntent()) }
+                            },
+                        ),
                         onBack = { screen = Screen.DASHBOARD },
                     )
                 }

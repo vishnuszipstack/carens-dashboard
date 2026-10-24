@@ -8,6 +8,8 @@ import dev.carens.dashboard.settings.DashSettings
 import dev.carens.dashboard.telemetry.DashboardTelemetry
 import dev.carens.dashboard.telemetry.TelemetryHub
 import dev.carens.dashboard.trips.TripEntity
+import dev.carens.dashboard.update.ReleaseInfo
+import dev.carens.dashboard.update.UpdateState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -23,6 +25,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val trips: StateFlow<List<TripEntity>> =
         container.trips.finishedTrips.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val updater = container.updater
+    val updateState: StateFlow<UpdateState> = updater.state
+
+    fun checkForUpdate() {
+        container.appScope.launch { updater.check() }
+    }
+
+    fun installUpdate(release: ReleaseInfo) {
+        container.appScope.launch { updater.downloadAndInstall(release) }
+    }
 
     fun updateSettings(transform: (DashSettings) -> DashSettings) {
         viewModelScope.launch { container.settings.update(transform) }

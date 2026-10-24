@@ -74,6 +74,11 @@ object TelemetryHub {
     /** True while the phone dashboard activity is on screen. */
     val uiVisible = MutableStateFlow(false)
 
+    /** True while the Android Auto screen is showing on the car display. */
+    val carVisible = MutableStateFlow(false)
+
+    val anyUiVisible: Boolean get() = uiVisible.value || carVisible.value
+
     fun publish(t: DashboardTelemetry) {
         _telemetry.value = t
     }

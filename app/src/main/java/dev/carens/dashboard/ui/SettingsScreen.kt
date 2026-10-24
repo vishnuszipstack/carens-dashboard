@@ -46,6 +46,10 @@ import dev.carens.dashboard.settings.DashSettings
 import dev.carens.dashboard.settings.SpeedUnit
 import dev.carens.dashboard.settings.ThemeMode
 import dev.carens.dashboard.settings.VehicleProfile
+import dev.carens.dashboard.update.ReleaseInfo
+import dev.carens.dashboard.update.UpdateState
+import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import kotlin.math.roundToInt
 
 private const val LOCK_ABOVE_KMH = 10.0
@@ -56,6 +60,7 @@ fun SettingsScreen(
     speedKmh: Double?,
     onChange: ((DashSettings) -> DashSettings) -> Unit,
     onDeleteAllTrips: () -> Unit,
+    update: UpdateUi,
     onBack: () -> Unit,
 ) {
     // Safety: no fiddling with settings while the car is moving.
@@ -78,6 +83,9 @@ fun SettingsScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            item { SectionTitle("App updates") }
+            item { UpdateSection(update, enabled) }
+
             item { SectionTitle("Display") }
             item {
                 ChoiceRow("Speed unit", SpeedUnit.entries, settings.unit, { it.label }, enabled) { u ->
@@ -321,6 +329,61 @@ private fun VehicleEditor(profile: VehicleProfile, enabled: Boolean, onChange: (
             "These personalise the app only. They don't give access to the car's ECU.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+data class UpdateUi(
+    val state: UpdateState,
+    val versionName: String,
+    val onCheck: () -> Unit,
+    val onInstall: (ReleaseInfo) -> Unit,
+    val onAllowInstalls: () -> Unit,
+)
+
+@Composable
+private fun UpdateSection(ui: UpdateUi, enabled: Boolean) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Installed: version ${ui.versionName}", fontSize = 16.sp)
+        when (val st = ui.state) {
+            UpdateState.Idle -> Unit
+            UpdateState.Checking -> Text("Checking GitHub…", color = muted)
+            is UpdateState.UpToDate -> Text("You're on the latest build.", color = MaterialTheme.colorScheme.primary)
+            is UpdateState.Available -> {
+                Text("Update available: ${st.release.name}", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("${"%.1f".format(st.release.sizeBytes / 1_048_576.0)} MB", color = muted)
+            }
+            is UpdateState.Downloading -> {
+                Text("Downloading ${(st.progress * 100).roundToInt()}%", color = muted)
+                LinearProgressIndicator(progress = { st.progress }, modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp))
+            }
+            is UpdateState.NeedsInstallPermission -> Text(
+                "Android needs you to allow this app to install updates. Turn on \"Allow from this source\", come back, and tap Install again.",
+                color = DashColors.Warning,
+            )
+            UpdateState.Installing -> Text("Installing… confirm on the system prompt if asked.", color = muted)
+            is UpdateState.Failed -> Text(st.message, color = MaterialTheme.colorScheme.error)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            when (val st = ui.state) {
+                is UpdateState.Available -> Button(onClick = { ui.onInstall(st.release) }, enabled = enabled) {
+                    Text("Download and install")
+                }
+                is UpdateState.NeedsInstallPermission -> {
+                    Button(onClick = ui.onAllowInstalls, enabled = enabled) { Text("Allow installs") }
+                    OutlinedButton(onClick = { ui.onInstall(st.release) }, enabled = enabled) { Text("Install") }
+                }
+                else -> {
+                    val busy = st is UpdateState.Checking || st is UpdateState.Downloading || st is UpdateState.Installing
+                    Button(onClick = ui.onCheck, enabled = enabled && !busy) { Text("Check for updates") }
+                }
+            }
+        }
+        Text(
+            "Updates come from the latest release on GitHub. Your trips and settings are kept.",
+            style = MaterialTheme.typography.bodySmall,
+            color = muted,
         )
     }
 }

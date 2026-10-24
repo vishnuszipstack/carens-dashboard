@@ -15,13 +15,30 @@ android {
         applicationId = "dev.carens.dashboard"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI sets BUILD_NUMBER to the Actions run number, which is also the release tag (build-N).
+        val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = buildNumber
+        versionName = "0.2.$buildNumber"
+        buildConfigField("String", "UPDATE_REPO", "\"vishnuszipstack/carens-dashboard\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // One fixed key for every build, so in-app updates install over the previous version.
+    signingConfigs {
+        create("carens") {
+            storeFile = rootProject.file("signing/carens.jks")
+            storePassword = "carens-dashboard"
+            keyAlias = "carens"
+            keyPassword = "carens-dashboard"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("carens")
+        }
         release {
+            signingConfig = signingConfigs.getByName("carens")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -37,6 +54,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -73,5 +91,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
+    implementation("androidx.car.app:app:1.7.0")
+
     testImplementation("junit:junit:4.13.2")
+    // Real org.json for unit tests (the Android one is a stub on the JVM).
+    testImplementation("org.json:json:20240303")
 }

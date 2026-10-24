@@ -185,7 +185,7 @@ class DrivingService : Service() {
         if (Build.VERSION.SDK_INT >= 34) lookUpMslAltitude(now)
 
         // Idle shutdown when nobody is looking and nothing is being recorded.
-        if (TelemetryHub.uiVisible.value || active != null) {
+        if (TelemetryHub.anyUiVisible || active != null) {
             hiddenSinceMs = null
         } else {
             val since = hiddenSinceMs ?: now.also { hiddenSinceMs = it }
@@ -249,7 +249,7 @@ class DrivingService : Service() {
         finalizeTrip(trip, endElapsedMs)
         updateNotification()
         publish()
-        if (!TelemetryHub.uiVisible.value) shutdown()
+        if (!TelemetryHub.anyUiVisible) shutdown()
     }
 
     private fun finalizeTrip(trip: ActiveTrip, endElapsedMs: Long) {

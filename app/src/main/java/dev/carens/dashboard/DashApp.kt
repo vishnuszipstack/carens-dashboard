@@ -6,6 +6,7 @@ import androidx.room.Room
 import dev.carens.dashboard.settings.SettingsRepository
 import dev.carens.dashboard.trips.AppDatabase
 import dev.carens.dashboard.trips.TripRepository
+import dev.carens.dashboard.update.Updater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,7 @@ class AppContainer(context: Context) {
 
     val trips = TripRepository(db.tripDao())
     val settings = SettingsRepository(context.applicationContext)
+    val updater = Updater(context.applicationContext)
 
     /** For writes that must finish even if the screen or service that started them goes away. */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

@@ -70,14 +70,44 @@ no trip running, it waits 10 minutes for a drive to start, then stops. The notif
 shows when GPS is in use and has **End trip** / **Exit** actions. No background-location
 permission is needed.
 
+## Android Auto
+
+`car/DashCarAppService.kt` adds a template-based car screen: live GPS speed, trip distance and
+duration, moving time, average/max speed, heading and elevation, plus a Start/End trip button. It
+uses the same `TelemetryHub` data as the phone, and opening it on the car starts GPS recording
+even if the phone app wasn't opened.
+
+Android Auto only lets apps use fixed templates, so it's a text read-out, not a gauge. It
+refreshes about every 2 seconds. Row titles stay fixed so refreshes don't use up Android Auto's
+template quota.
+
+Because the app isn't from the Play Store, Android Auto hides it until you allow unknown sources:
+
+1. On the phone: Settings → Connected devices → Android Auto (on Vivo, search "Android Auto").
+2. Scroll to the bottom and tap **Version** about 10 times, then accept to enable developer mode.
+3. Top-right ⋮ menu → **Developer settings** → turn on **Unknown sources**.
+4. Reconnect to the car. "Carens Dashboard" appears in the app launcher on the car screen.
+
+It's declared as a POI-category app. That's fine for sideloading but wouldn't pass Play Store review.
+
+## Updates
+
+Settings → **App updates** → *Check for updates* reads the latest GitHub release of
+`vishnuszipstack/carens-dashboard` (tag `build-N`), compares N with the installed build, and
+downloads and installs the APK. Android asks once to allow installs from this app.
+
+Every push to `main` builds a new release. All builds are signed with `signing/carens.jks`
+(committed on purpose so every CI build has the same key and installs as an update). Anyone with
+the repo could sign an APK with it. That only matters if someone gets you to install their APK,
+since the updater only downloads from this repo. For a Play Store release, move to a private key
+held in GitHub secrets.
+
 ## Not in this build
 
 - **Next turn / ETA / remaining distance.** Google Maps doesn't expose its route to other apps.
   The fields exist in `DashboardTelemetry` (always null) for a future in-app route source.
 - **Embedded mini-map.** Needs a Google Maps SDK API key and billing setup; the Maps handoff
   covers P0.
-- **Android Auto.** Spec phase 4. A third-party app can't draw a custom cluster there; it would
-  have to fit a car-app category (navigation, POI, etc.) and its templates.
 - P1/P2 items: customisable cards, CSV/JSON export, fuel log, widgets, multiple vehicles.
 
 ## Things to test on the phone
