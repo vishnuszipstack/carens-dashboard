@@ -12,7 +12,8 @@ mkdir -p "$OUT"
 # Route: Swaraj Round (east) -> Thrissur railway station.
 START_LAT=10.52770; START_LON=76.21690
 DEST_LAT=10.51460;  DEST_LON=76.20990
-DEST_NAME="Thrissur Railway Station"
+# Quoted again for the device shell, which re-splits arguments on spaces.
+DEST_NAME="'Thrissur Railway Station'"
 
 adb install -r -g "$APK"
 adb shell pm grant $PKG android.permission.ACCESS_FINE_LOCATION
@@ -24,6 +25,7 @@ adb shell settings put secure location_mode 3 || true
 adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1   # landscape, like a car mount
+adb shell cmd window user-rotation lock 1 || true
 
 # Build a drive along the route at ~40 km/h, one point per second.
 curl -s "https://router.project-osrm.org/route/v1/driving/$START_LON,$START_LAT;$DEST_LON,$DEST_LAT?overview=full&geometries=geojson" > route.json
@@ -97,6 +99,7 @@ open --es screen SETTINGS
 shot 12-settings 4
 
 adb shell settings put system user_rotation 0   # portrait
+adb shell cmd window user-rotation lock 0 || true
 open --es screen HOME
 shot 13-home-portrait 8
 open --es screen MAP

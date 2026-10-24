@@ -219,13 +219,17 @@ fun rememberClock(): Pair<String, String> {
 fun ClockWidget(placeLabel: String?, modifier: Modifier = Modifier) {
     val (time, date) = rememberClock()
     WidgetCard(modifier) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        // Scale the time to the card so "10:45 PM" never wraps.
+        val timeSp = (maxWidth.value / (time.length.coerceAtLeast(5) * 0.6f)).coerceIn(26f, 56f).sp
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-            Text(time, fontSize = 52.sp, fontWeight = FontWeight.SemiBold, style = Tabular, lineHeight = 54.sp)
+            Text(time, fontSize = timeSp, fontWeight = FontWeight.SemiBold, style = Tabular, lineHeight = timeSp, maxLines = 1)
             Text(date, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             if (placeLabel != null) {
                 Spacer(Modifier.height(4.dp))
                 Text("📍 $placeLabel", fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+        }
         }
     }
 }
@@ -242,17 +246,8 @@ fun WeatherWidget(weather: WeatherInfo?, modifier: Modifier = Modifier) {
                 Text(weather.emoji, fontSize = 36.sp)
                 Spacer(Modifier.width(10.dp))
                 Column {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(weather.tempLabel, fontSize = 34.sp, fontWeight = FontWeight.SemiBold, lineHeight = 36.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            weather.description,
-                            fontSize = 16.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-                    }
+                    Text(weather.tempLabel, fontSize = 34.sp, fontWeight = FontWeight.SemiBold, lineHeight = 36.sp)
+                    Text(weather.description, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val extra = listOfNotNull(
                         weather.feelsLikeC?.let { "feels ${it.roundToInt()}°" },
                         weather.humidityPct?.let { "$it%" },

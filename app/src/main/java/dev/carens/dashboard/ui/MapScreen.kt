@@ -384,7 +384,11 @@ private fun PreviewCard(p: Navigator.Preview, imperial: Boolean, a: MapActions, 
                 Navigator.Preview.None -> Unit
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 if (p is Navigator.Preview.Ready) {
                     Button(
                         onClick = { a.start(p.destination, p.route) },

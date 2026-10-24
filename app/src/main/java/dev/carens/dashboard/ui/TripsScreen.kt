@@ -2,6 +2,7 @@ package dev.carens.dashboard.ui
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,7 +87,10 @@ fun TripsScreen(vm: MainViewModel, unit: SpeedUnit, onBack: (() -> Unit)?) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Period.entries.forEach { p ->
                         FilterChip(selected = p == period, onClick = { period = p }, label = { Text(p.label, fontSize = 15.sp) })
                     }
