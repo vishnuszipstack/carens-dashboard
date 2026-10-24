@@ -65,7 +65,20 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.TilesOverlay
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+
+/** Inverted, slightly dimmed tiles for night driving. */
+private val NightMapFilter = ColorMatrixColorFilter(
+    ColorMatrix(
+        floatArrayOf(
+            -0.85f, 0f, 0f, 0f, 230f,
+            0f, -0.85f, 0f, 0f, 235f,
+            0f, 0f, -0.85f, 0f, 245f,
+            0f, 0f, 0f, 1f, 0f,
+        ),
+    ),
+)
 
 @Composable
 private fun CardSurface(modifier: Modifier, content: @Composable () -> Unit) {
@@ -133,7 +146,7 @@ fun MapCard(
                 factory = { mapView },
                 modifier = Modifier.fillMaxSize(),
                 update = { mv ->
-                    mv.overlayManager.tilesOverlay.setColorFilter(if (dark) TilesOverlay.INVERTED_COLORS else null)
+                    mv.overlayManager.tilesOverlay.setColorFilter(if (dark) NightMapFilter else null)
                     if (lat != null && lon != null && following) {
                         mv.controller.animateTo(GeoPoint(lat, lon))
                     }
