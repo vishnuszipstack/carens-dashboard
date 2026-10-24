@@ -20,6 +20,8 @@ adb shell pm grant $PKG android.permission.ACCESS_COARSE_LOCATION
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
 adb shell cmd notification allow_listener $PKG/$PKG.info.MusicListenerService || true
 adb shell settings put secure location_mode 3 || true
+# Pre-dismiss Android's one-time "Viewing full screen" hint so it isn't in the shots.
+adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1   # landscape, like a car mount
 
@@ -101,4 +103,5 @@ open --es screen MAP
 shot 14-map-portrait 6
 
 kill $DRIVE_PID 2>/dev/null || true
+adb logcat -d -s CarensLaunch CarensNav AndroidRuntime > "$OUT/logcat.txt" 2>&1 || true
 ls -la "$OUT"

@@ -73,6 +73,7 @@ class Navigator(
     }
 
     fun start(destination: Destination, route: Route) {
+        android.util.Log.i("CarensNav", "start to ${destination.name}, ${route.steps.size} steps")
         _preview.value = Preview.None
         announced.clear()
         offRouteCount = 0
@@ -87,6 +88,7 @@ class Navigator(
     }
 
     fun stop() {
+        android.util.Log.i("CarensNav", "stop", Throwable("stack"))
         followJob?.cancel()
         followJob = null
         _state.value = null

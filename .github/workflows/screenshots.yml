@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls shots || exit 0
-          cd shots && zip -q ../screenshots.zip *.png && cd ..
+          cd shots && zip -q ../screenshots.zip *.png *.txt && cd ..
           gh release view screenshots >/dev/null 2>&1 || \
             gh release create screenshots --title "Screenshots" --notes "Latest emulator screenshots" --prerelease
           gh release upload screenshots screenshots.zip --clobber

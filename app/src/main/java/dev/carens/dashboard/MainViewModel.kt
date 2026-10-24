@@ -162,6 +162,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun handleLaunch(intent: Intent?) {
         val extras = intent?.extras ?: return
+        android.util.Log.i("CarensLaunch", "extras=${extras.keySet().joinToString { "$it=${extras.getString(it)}" }}")
         extras.getString("screen")?.let { launchScreen.value = it.uppercase() }
         val lat = extras.getString("dest_lat")?.toDoubleOrNull()
         val lon = extras.getString("dest_lon")?.toDoubleOrNull()
@@ -179,6 +180,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (autostart) {
                     repeat(30) {
                         val p = routePreview.value
+                        android.util.Log.i("CarensLaunch", "autostart waiting, preview=${p::class.simpleName}")
                         if (p is dev.carens.dashboard.nav.Navigator.Preview.Ready) {
                             startNavigation(p.destination, p.route)
                             return@launch

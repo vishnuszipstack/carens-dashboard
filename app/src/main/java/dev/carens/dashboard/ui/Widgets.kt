@@ -239,11 +239,20 @@ fun WeatherWidget(weather: WeatherInfo?, modifier: Modifier = Modifier) {
             Text("Shows once there's a GPS fix and internet", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
         } else {
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                Text(weather.emoji, fontSize = 44.sp)
-                Spacer(Modifier.width(12.dp))
+                Text(weather.emoji, fontSize = 36.sp)
+                Spacer(Modifier.width(10.dp))
                 Column {
-                    Text(weather.tempLabel, fontSize = 40.sp, fontWeight = FontWeight.SemiBold, lineHeight = 42.sp)
-                    Text(weather.description, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(weather.tempLabel, fontSize = 34.sp, fontWeight = FontWeight.SemiBold, lineHeight = 36.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            weather.description,
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
                     val extra = listOfNotNull(
                         weather.feelsLikeC?.let { "feels ${it.roundToInt()}°" },
                         weather.humidityPct?.let { "$it%" },

@@ -186,11 +186,18 @@ fun MapScreen(d: MapData, a: MapActions) {
         }
 
         // Bottom-left: speed bubble.
-        SpeedBubble(t, d.settings, Modifier.align(Alignment.BottomStart).padding(12.dp))
+        val cardShown = d.nav != null || d.preview !is Navigator.Preview.None
+        SpeedBubble(
+            t,
+            d.settings,
+            if (wide || !cardShown) Modifier.align(Alignment.BottomStart).padding(12.dp)
+            else Modifier.align(Alignment.CenterStart).padding(12.dp),
+        )
 
         // Bottom: route preview card or navigation bar.
         Box(
-            Modifier.align(Alignment.BottomCenter).padding(start = 110.dp, end = 80.dp, bottom = 12.dp)
+            Modifier.align(Alignment.BottomCenter)
+                .padding(start = if (wide) 110.dp else 12.dp, end = if (wide) 80.dp else 12.dp, bottom = 12.dp)
                 .then(if (wide) Modifier.widthIn(max = 640.dp) else Modifier.fillMaxWidth()),
         ) {
             val nav = d.nav
