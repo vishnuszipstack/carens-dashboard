@@ -176,7 +176,7 @@ fun MapScreen(d: MapData, a: MapActions) {
             MapButton(
                 if (d.settings.mapHeadingUp) Icons.Filled.Navigation else Icons.Filled.Explore,
                 if (d.settings.mapHeadingUp) "Heading up" else "North up",
-                a.toggleHeadingUp,
+                onClick = a.toggleHeadingUp,
             )
             MapButton(
                 Icons.Filled.MyLocation,
