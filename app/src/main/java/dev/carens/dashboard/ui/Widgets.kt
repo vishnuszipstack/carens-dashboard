@@ -456,13 +456,20 @@ fun NavBanner(nav: NavState, imperial: Boolean, modifier: Modifier = Modifier, c
 fun NavSummary(nav: NavState, imperial: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val eta = DateFormat.getTimeFormat(context).format(Date(nav.etaWallMs))
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Text(eta, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, style = Tabular)
-        Spacer(Modifier.width(14.dp))
+    // Wraps the time-left part onto its own line when space is tight, instead of
+    // squeezing it into a one-word-per-line column.
+    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+    androidx.compose.foundation.layout.FlowRow(
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(eta, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, style = Tabular, maxLines = 1)
         Text(
             "${Format.duration((nav.remainingS * 1000).toLong())} · ${navDistance(nav.remainingM, imperial)}",
             fontSize = 17.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
         )
     }
 }

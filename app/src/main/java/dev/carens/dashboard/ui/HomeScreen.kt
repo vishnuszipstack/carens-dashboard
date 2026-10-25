@@ -282,7 +282,7 @@ private fun ClockWeatherCard(weather: WeatherInfo?, place: PlaceInfo?, modifier:
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // Fit the time to the card's width and leave room for date + weather below.
             val byWidth = maxWidth.value / (time.length.coerceAtLeast(5) * 0.58f)
-            val byHeight = (maxHeight.value - if (weather != null) 78f else 30f) * 0.62f
+            val byHeight = (maxHeight.value - if (weather != null) 84f else 30f) * 0.62f
             val timeSp = minOf(byWidth, byHeight).coerceIn(24f, 60f).sp
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
                 Column {
@@ -294,20 +294,14 @@ private fun ClockWeatherCard(weather: WeatherInfo?, place: PlaceInfo?, modifier:
                         Text(weather.emoji, fontSize = 30.sp)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(weather.tempLabel, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    weather.description,
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(bottom = 4.dp),
-                                )
-                            }
-                            weather.feelsLikeC?.let {
-                                Text("Feels ${it.roundToInt()}°", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            Text(weather.tempLabel, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp)
+                            Text(
+                                weather.description + (weather.feelsLikeC?.let { " · feels ${it.roundToInt()}°" } ?: ""),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 } else if (place != null) {

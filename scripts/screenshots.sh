@@ -26,6 +26,7 @@ adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1   # landscape, like a car mount
 adb shell cmd window user-rotation lock 1 || true
+sleep 4
 
 # Build a drive along the route at ~40 km/h, one point per second.
 curl -s "https://router.project-osrm.org/route/v1/driving/$START_LON,$START_LAT;$DEST_LON,$DEST_LAT?overview=full&geometries=geojson" > route.json
