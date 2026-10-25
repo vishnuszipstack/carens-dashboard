@@ -76,6 +76,8 @@ open() {
 
 open --es screen HOME
 shot 01-home 40            # GPS fix, auto trip start, weather, map tiles
+open --es screen CAR
+shot 02b-android-auto-driving 12
 open --es screen MAP
 shot 02-map 10
 open --es screen MAP --es dest_lat "$DEST_LAT" --es dest_lon "$DEST_LON" --es dest_name "$DEST_NAME"
