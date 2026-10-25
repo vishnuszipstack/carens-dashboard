@@ -110,6 +110,7 @@ adb shell cmd uimode night no
 
 adb shell settings put system user_rotation 0   # portrait
 adb shell cmd window user-rotation lock 0 || true
+sleep 4
 open --es screen HOME
 shot 13-home-portrait 8
 open --es screen MAP

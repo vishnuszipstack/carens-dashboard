@@ -127,8 +127,8 @@ fun HomeScreen(d: HomeData, music: MusicActions, a: HomeActions) {
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Gap)) {
                         MapHero(d, imperial, Modifier.weight(0.62f).fillMaxHeight(), a.openMap)
                         Column(Modifier.weight(0.38f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(Gap)) {
-                            ClockWeatherCard(d.weather, d.place, Modifier.weight(0.9f).fillMaxWidth())
-                            MusicCard(d.nowPlaying, d.musicAccess, music, Modifier.weight(1.1f).fillMaxWidth(), a.openMusic)
+                            ClockWeatherCard(d.weather, d.place, Modifier.weight(1.1f).fillMaxWidth())
+                            MusicCard(d.nowPlaying, d.musicAccess, music, Modifier.weight(0.9f).fillMaxWidth(), a.openMusic)
                         }
                     }
                     tiles(Modifier.fillMaxWidth().height(92.dp))
@@ -280,7 +280,10 @@ private fun ClockWeatherCard(weather: WeatherInfo?, place: PlaceInfo?, modifier:
     val (time, date) = rememberClock()
     WidgetCard(modifier, padding = 16.dp) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val timeSp = (maxWidth.value / (time.length.coerceAtLeast(5) * 0.58f)).coerceIn(28f, 60f).sp
+            // Fit the time to the card's width and leave room for date + weather below.
+            val byWidth = maxWidth.value / (time.length.coerceAtLeast(5) * 0.58f)
+            val byHeight = (maxHeight.value - if (weather != null) 78f else 30f) * 0.62f
+            val timeSp = minOf(byWidth, byHeight).coerceIn(24f, 60f).sp
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(time, fontSize = timeSp, lineHeight = timeSp, fontWeight = FontWeight.Light, style = Tabular, maxLines = 1)

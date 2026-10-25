@@ -171,7 +171,11 @@ fun SpeedGauge(telemetry: DashboardTelemetry, settings: DashSettings, modifier: 
                         0.45f to DashColors.Accent,
                         0.62f to DashColors.Warning,
                         0.75f to DashColors.Danger,
-                        1f to DashColors.Danger,
+                        0.9f to DashColors.Danger,
+                        // Back to green just before 360° so the start cap (which pokes
+                        // slightly "behind" 0°) isn't tinted red.
+                        0.97f to DashColors.Accent,
+                        1f to DashColors.Accent,
                         center = center,
                     )
                 }
