@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -155,10 +156,10 @@ fun AppRoot(vm: MainViewModel) {
                 val dockApps = remember(dockPackages) { dockPackages.map { vm.apps.app(it) } }
                 val pos = telemetry.latitude?.let { LatLon(it, telemetry.longitude!!) }
 
-                Row(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxSize().background(dashBackground(dark))) {
                     NavigationRail(
                         modifier = if (settings.fullScreen) Modifier else Modifier.safeDrawingPadding(),
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     ) {
                         Spacer(Modifier.weight(1f))
                         Tab.entries.forEach { t ->

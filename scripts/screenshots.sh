@@ -98,6 +98,16 @@ shot 11-fuel-log 4
 open --es screen SETTINGS
 shot 12-settings 4
 
+# Night look (the app follows the phone's dark mode, and switches automatically after sunset).
+adb shell cmd uimode night yes
+open --es screen HOME
+shot 15-home-night 8
+open --es screen MAP
+shot 16-map-night 6
+open --es screen APPS
+shot 17-apps-night 5
+adb shell cmd uimode night no
+
 adb shell settings put system user_rotation 0   # portrait
 adb shell cmd window user-rotation lock 0 || true
 open --es screen HOME

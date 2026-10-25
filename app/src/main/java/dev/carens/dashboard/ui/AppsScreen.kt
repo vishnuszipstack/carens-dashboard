@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,7 +66,7 @@ fun AppsScreen(repo: AppsRepository, dock: List<String>, onToggleDock: (String) 
             shape = RoundedCornerShape(16.dp),
         )
         Text(
-            "Long-press an app to pin it to the Home dock.",
+            "Tap to open. Long-press to pin an app to the Home screen.",
             Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -76,39 +77,55 @@ fun AppsScreen(repo: AppsRepository, dock: List<String>, onToggleDock: (String) 
         } else {
             val shown = list.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(112.dp),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                columns = GridCells.Adaptive(128.dp),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(shown, key = { it.packageName }) { app ->
                     val pinned = app.packageName in dock
                     val bmp = remember(app.packageName) {
-                        app.icon?.let { runCatching { it.toBitmap(160, 160).asImageBitmap() }.getOrNull() }
+                        app.icon?.let { runCatching { it.toBitmap(176, 176).asImageBitmap() }.getOrNull() }
                     }
-                    Column(
-                        Modifier.clip(RoundedCornerShape(18.dp))
-                            .combinedClickable(
-                                onClick = { repo.launch(app.packageName) },
-                                onLongClick = { onToggleDock(app.packageName) },
-                            )
-                            .padding(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (pinned) 2.dp else 1.dp,
+                            if (pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                        modifier = Modifier.height(132.dp).clip(RoundedCornerShape(24.dp)).combinedClickable(
+                            onClick = { repo.launch(app.packageName) },
+                            onLongClick = { onToggleDock(app.packageName) },
+                        ),
                     ) {
-                        Box {
-                            if (bmp != null) Image(bmp, app.label, Modifier.size(64.dp)) else Spacer(Modifier.size(64.dp))
+                        Box(Modifier.fillMaxSize()) {
+                            Column(
+                                Modifier.fillMaxSize().padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                if (bmp != null) Image(bmp, app.label, Modifier.size(58.dp)) else Spacer(Modifier.size(58.dp))
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    app.label,
+                                    fontSize = 14.sp,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                             if (pinned) {
                                 Icon(
                                     Icons.Filled.PushPin,
-                                    "Pinned to dock",
+                                    "Pinned to Home",
                                     tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.align(Alignment.TopEnd).size(22.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape).padding(3.dp),
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(22.dp)
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape).padding(4.dp),
                                 )
                             }
                         }
-                        Spacer(Modifier.height(6.dp))
-                        Text(app.label, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                     }
                 }
             }

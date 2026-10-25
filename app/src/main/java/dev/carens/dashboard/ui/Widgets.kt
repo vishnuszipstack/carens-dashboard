@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -98,16 +99,18 @@ internal val Tabular = TextStyle(fontFeatureSettings = "tnum")
 fun WidgetCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    padding: Dp = 14.dp,
+    padding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val shape = RoundedCornerShape(28.dp)
     Surface(
-        modifier = modifier.clip(RoundedCornerShape(22.dp)).then(
+        modifier = modifier.clip(shape).then(
             if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
         ),
-        shape = RoundedCornerShape(22.dp),
+        shape = shape,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 0.dp,
     ) {
         Column(Modifier.padding(padding), content = content)
     }
@@ -126,6 +129,10 @@ fun WidgetLabel(text: String, modifier: Modifier = Modifier) {
 
 // --- Speed ---------------------------------------------------------------------
 
+/**
+ * Speedometer: a 270° ring that shades green → amber → red as speed rises,
+ * with tick marks every 20 (km/h or mph) and a big tabular number.
+ */
 @Composable
 fun SpeedGauge(telemetry: DashboardTelemetry, settings: DashSettings, modifier: Modifier = Modifier) {
     val unit = settings.unit
@@ -136,25 +143,59 @@ fun SpeedGauge(telemetry: DashboardTelemetry, settings: DashSettings, modifier: 
     val numberColor = when {
         kmh == null -> scheme.onSurfaceVariant
         over -> DashColors.Danger
-        else -> scheme.onBackground
+        else -> scheme.onSurface
     }
-    val arcColor = if (over) DashColors.Danger else scheme.primary
-    val trackColor = scheme.outlineVariant
+    val trackColor = scheme.surfaceVariant
+    val tickColor = scheme.outline
     val fraction = ((shown ?: 0.0) / unit.gaugeMax).coerceIn(0.0, 1.0).toFloat()
+    val sweep = 270f
 
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        val diameterDp = min(maxWidth.value, maxHeight.value / 0.78f) * 0.95f
+        val d = min(maxWidth.value, maxHeight.value) * 0.92f
         val fontScale = LocalDensity.current.fontScale
-        val numberSp = (diameterDp * 0.32f / fontScale).sp
+        val numberSp = (d * 0.30f / fontScale).sp
 
-        Canvas(Modifier.fillMaxSize()) {
-            val d = min(size.width, size.height / 0.78f) * 0.95f
-            val stroke = d * 0.045f
-            val topLeft = Offset((size.width - d) / 2f, (size.height - 0.78f * d) / 2f + stroke / 2)
-            val arcSize = Size(d, d)
-            drawArc(trackColor, 150f, 240f, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+        Canvas(Modifier.size(d.dp)) {
+            val stroke = size.minDimension * 0.075f
+            val inset = stroke / 2 + size.minDimension * 0.06f
+            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
+            val topLeft = Offset(inset, inset)
+            drawArc(trackColor, 135f, sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             if (fraction > 0f) {
-                drawArc(arcColor, 150f, 240f * fraction, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+                val brush = if (over) {
+                    androidx.compose.ui.graphics.SolidColor(DashColors.Danger)
+                } else {
+                    // Sweep gradient starts at 3 o'clock; rotate so it begins where the arc does.
+                    androidx.compose.ui.graphics.Brush.sweepGradient(
+                        0f to DashColors.Accent,
+                        0.45f to DashColors.Accent,
+                        0.62f to DashColors.Warning,
+                        0.75f to DashColors.Danger,
+                        1f to DashColors.Danger,
+                        center = center,
+                    )
+                }
+                rotate(135f) {
+                    drawArc(brush, 0f, sweep * fraction, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+                }
+            }
+            // Ticks every 20 units on the outside of the ring.
+            val step = 20.0
+            var v = 0.0
+            val r1 = size.minDimension / 2 - size.minDimension * 0.015f
+            val r0 = r1 - size.minDimension * 0.035f
+            while (v <= unit.gaugeMax + 0.1) {
+                val ang = Math.toRadians(135.0 + sweep * (v / unit.gaugeMax))
+                val c = kotlin.math.cos(ang).toFloat()
+                val s = kotlin.math.sin(ang).toFloat()
+                drawLine(
+                    tickColor,
+                    Offset(center.x + c * r0, center.y + s * r0),
+                    Offset(center.x + c * r1, center.y + s * r1),
+                    strokeWidth = size.minDimension * 0.008f,
+                    cap = StrokeCap.Round,
+                )
+                v += step
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -163,11 +204,11 @@ fun SpeedGauge(telemetry: DashboardTelemetry, settings: DashSettings, modifier: 
                 color = numberColor,
                 fontSize = numberSp,
                 lineHeight = numberSp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 style = Tabular,
             )
-            Text(unit.label, fontSize = 18.sp, color = scheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
+            Text(unit.label, fontSize = 16.sp, color = scheme.onSurfaceVariant, letterSpacing = 1.sp)
+            Spacer(Modifier.height(6.dp))
             GpsStatus(telemetry, settings, over)
         }
     }
