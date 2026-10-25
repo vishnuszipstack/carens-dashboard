@@ -33,18 +33,17 @@ data class DashArtModel(
 )
 
 /**
- * Draws the square picture Android Auto shows on its now-playing screen.
- * That picture is the only free-form area a sideloaded media app gets, so it
- * packs a speed gauge, mini-map, clock, weather, trip and music.
+ * Draws the square picture Android Auto shows on its now-playing screen —
+ * the only free-form area a sideloaded media app gets. Map-first so it reads
+ * at a glance:
  *
- * Layout (512 px):
- *   ┌───────────────┬──────────┐
- *   │  speed gauge  │ mini-map │
- *   │               ├──────────┤
- *   │               │ clock/wx │
- *   ├───────────────┴──────────┤
- *   │ trip · place · music     │
+ *   ┌──────────────────────────┐
+ *   │ 7:11 PM          ☁ 26°   │   (next-turn banner while navigating)
+ *   │          ▲ you           │
+ *   │   map fills the square   │
+ *   │ (42)          Vattamkulam│
  *   └──────────────────────────┘
+ * Trip and song stay in the text lines next to the picture.
  */
 object GaugeArt {
     const val SIZE = 512
@@ -72,125 +71,132 @@ object GaugeArt {
         val bmp = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         c.drawColor(bg)
+        val full = RectF(0f, 0f, SIZE.toFloat(), SIZE.toFloat())
 
-        drawGauge(c, m, RectF(0f, 0f, 300f, 340f))
-        drawMap(c, m, RectF(312f, 14f, 498f, 200f))
-        drawClockWeather(c, m, RectF(312f, 212f, 498f, 340f))
-        drawBottom(c, m, RectF(14f, 352f, 498f, 498f))
+        // 1. Map fills the whole picture.
+        val map = m.map
+        if (map != null) {
+            c.drawBitmap(map, null, full, Paint(Paint.FILTER_BITMAP_FLAG))
+        } else {
+            text(c, "Map loading…", SIZE / 2f, SIZE / 2f, 30f, muted, bold = false, align = Paint.Align.CENTER)
+        }
+        // Darken top and bottom edges so overlays stay readable on any map.
+        fill.shader = android.graphics.LinearGradient(
+            0f, 0f, 0f, SIZE.toFloat(),
+            intArrayOf(0xB0000000.toInt(), 0x00000000, 0x00000000, 0xC0000000.toInt()),
+            floatArrayOf(0f, 0.28f, 0.6f, 1f),
+            android.graphics.Shader.TileMode.CLAMP,
+        )
+        c.drawRect(full, fill)
+        fill.shader = null
+
+        // 2. Your position and heading, in the centre.
+        drawArrow(c, SIZE / 2f, SIZE / 2f + 10f, m.bearing)
+
+        // 3. Top: next turn while navigating, otherwise clock + weather.
+        val nav = m.navLine
+        if (nav != null) {
+            val r = RectF(14f, 14f, SIZE - 14f, 118f)
+            fill.color = Color.parseColor("#0E7A4E")
+            c.drawRoundRect(r, 26f, 26f, fill)
+            text(c, nav, r.left + 24f, r.centerY() + 16f, 44f, Color.WHITE, bold = true, maxWidth = r.width() - 48f)
+        } else {
+            text(c, m.clock, 24f, 72f, 56f, text, bold = true)
+            val wx = listOfNotNull(m.weatherEmoji, m.weatherTemp).joinToString(" ")
+            if (wx.isNotBlank()) text(c, wx, SIZE - 24f, 72f, 44f, text, bold = true, align = Paint.Align.RIGHT)
+        }
+
+        // 4. Bottom-left: big speed bubble.
+        drawSpeed(c, m, cx = 112f, cy = SIZE - 112f, radius = 96f)
+
+        // 5. Bottom-right: clock while navigating, else where you are.
+        val right = if (nav != null) {
+            listOfNotNull(m.clock, m.weatherTemp).joinToString("  ")
+        } else {
+            m.placeLine
+        }
+        if (!right.isNullOrBlank()) {
+            val maxW = SIZE - 240f - 24f
+            tp.textSize = 30f
+            tp.typeface = bold
+            val fitted = TextUtils.ellipsize(right, tp, maxW, TextUtils.TruncateAt.END).toString()
+            val w = tp.measureText(fitted)
+            val r = RectF(SIZE - 24f - w - 28f, SIZE - 84f, SIZE - 24f, SIZE - 30f)
+            fill.color = 0xCC0B1017.toInt()
+            c.drawRoundRect(r, 18f, 18f, fill)
+            text(c, fitted, r.left + 14f, r.bottom - 17f, 30f, text, bold = true)
+        }
         return bmp
     }
 
-    private fun drawGauge(c: Canvas, m: DashArtModel, r: RectF) {
-        val cx = r.centerX()
-        val d = 250f
-        val oval = RectF(cx - d / 2, 36f, cx + d / 2, 36f + d)
+    private fun drawSpeed(c: Canvas, m: DashArtModel, cx: Float, cy: Float, radius: Float) {
+        fill.color = 0xEE0B1017.toInt()
+        c.drawCircle(cx, cy, radius, fill)
+        val ring = RectF(cx - radius + 12f, cy - radius + 12f, cx + radius - 12f, cy + radius - 12f)
+        arcPaint.strokeWidth = 12f
         arcPaint.color = track
-        c.drawArc(oval, 150f, 240f, false, arcPaint)
+        c.drawArc(ring, 135f, 270f, false, arcPaint)
         if (m.speed != null && m.fraction > 0f) {
             arcPaint.color = if (m.over) danger else accent
-            c.drawArc(oval, 150f, 240f * m.fraction.coerceIn(0f, 1f), false, arcPaint)
+            c.drawArc(ring, 135f, 270f * m.fraction.coerceIn(0f, 1f), false, arcPaint)
         }
-        tp.textAlign = Paint.Align.CENTER
-        tp.typeface = bold
-        tp.textSize = 112f
-        tp.color = when {
+        val numColor = when {
             m.speed == null -> muted
             m.over -> danger
             else -> text
         }
-        c.drawText(m.speed?.toString() ?: "--", cx, 200f, tp)
-        tp.typeface = Typeface.DEFAULT
-        tp.textSize = 30f
-        tp.color = muted
-        c.drawText(m.unitLabel, cx, 240f, tp)
-        if (m.status != null) {
-            tp.color = warn
-            tp.textSize = 28f
-            c.drawText(m.status, cx, 322f, tp)
+        text(c, m.speed?.toString() ?: "--", cx, cy + 22f, 72f, numColor, bold = true, align = Paint.Align.CENTER)
+        text(c, m.unitLabel, cx, cy + 58f, 22f, muted, bold = false, align = Paint.Align.CENTER)
+        m.status?.let {
+            tp.textSize = 24f
+            val w = tp.measureText(it)
+            val r = RectF(cx - w / 2 - 14f, cy - radius - 46f, cx + w / 2 + 14f, cy - radius - 10f)
+            fill.color = 0xE0000000.toInt()
+            c.drawRoundRect(r, 14f, 14f, fill)
+            text(c, it, cx, r.bottom - 10f, 24f, warn, bold = true, align = Paint.Align.CENTER)
         }
     }
 
-    private fun drawMap(c: Canvas, m: DashArtModel, r: RectF) {
-        val radius = 22f
-        fill.shader = null
-        fill.color = panel
-        c.drawRoundRect(r, radius, radius, fill)
-        val map = m.map
-        if (map != null) {
-            val shader = BitmapShader(map, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-            val matrix = Matrix().apply {
-                setScale(r.width() / map.width, r.height() / map.height)
-                postTranslate(r.left, r.top)
-            }
-            shader.setLocalMatrix(matrix)
-            fill.shader = shader
-            c.drawRoundRect(r, radius, radius, fill)
-            fill.shader = null
-        } else {
-            tp.textAlign = Paint.Align.CENTER
-            tp.typeface = Typeface.DEFAULT
-            tp.textSize = 22f
-            tp.color = muted
-            c.drawText("Map loading", r.centerX(), r.centerY() + 8f, tp)
-        }
-        // Heading arrow at the centre (the map is north-up).
+    private fun drawArrow(c: Canvas, x: Float, y: Float, bearing: Float?) {
         c.save()
-        c.translate(r.centerX(), r.centerY())
-        c.rotate(m.bearing ?: 0f)
+        c.translate(x, y)
+        c.rotate(bearing ?: 0f)
         val arrow = Path().apply {
-            moveTo(0f, -20f)
-            lineTo(14f, 16f)
-            lineTo(0f, 8f)
-            lineTo(-14f, 16f)
+            moveTo(0f, -30f)
+            lineTo(22f, 24f)
+            lineTo(0f, 12f)
+            lineTo(-22f, 24f)
             close()
         }
-        fill.color = accent
         fill.style = Paint.Style.FILL
+        fill.color = accent
         c.drawPath(arrow, fill)
-        fill.color = Color.WHITE
         fill.style = Paint.Style.STROKE
-        fill.strokeWidth = 3f
+        fill.strokeWidth = 4f
+        fill.color = Color.WHITE
         c.drawPath(arrow, fill)
         fill.style = Paint.Style.FILL
         c.restore()
     }
 
-    private fun drawClockWeather(c: Canvas, m: DashArtModel, r: RectF) {
-        fill.shader = null
-        fill.color = panel
-        c.drawRoundRect(r, 22f, 22f, fill)
-        tp.textAlign = Paint.Align.CENTER
-        tp.typeface = bold
-        tp.textSize = 50f
-        tp.color = text
-        c.drawText(m.clock, r.centerX(), r.top + 58f, tp)
-        tp.typeface = Typeface.DEFAULT
-        tp.textSize = 38f
-        val weather = listOfNotNull(m.weatherEmoji, m.weatherTemp).joinToString(" ")
-        c.drawText(weather.ifBlank { "—" }, r.centerX(), r.top + 110f, tp)
-    }
-
-    private fun drawBottom(c: Canvas, m: DashArtModel, r: RectF) {
-        fill.shader = null
-        fill.color = panel
-        c.drawRoundRect(r, 22f, 22f, fill)
-        tp.textAlign = Paint.Align.LEFT
-        val x = r.left + 20f
-        val w = r.width() - 40f
-        val lines = listOfNotNull(
-            m.navLine?.let { Triple(it, accent, true) },
-            Triple(m.tripLine, text, m.navLine == null),
-            m.placeLine?.let { Triple("📍 $it", muted, false) },
-            m.musicLine?.let { Triple("♪ $it", accent, false) },
-        ).take(3)
-        var y = r.top + 44f
-        for ((s, color, isBold) in lines) {
-            tp.typeface = if (isBold) bold else Typeface.DEFAULT
-            tp.textSize = if (isBold) 34f else 30f
-            tp.color = color
-            val fitted = TextUtils.ellipsize(s, tp, w, TextUtils.TruncateAt.END).toString()
-            c.drawText(fitted, x, y, tp)
-            y += 46f
-        }
+    private fun text(
+        c: Canvas,
+        s: String,
+        x: Float,
+        y: Float,
+        size: Float,
+        color: Int,
+        bold: Boolean,
+        align: Paint.Align = Paint.Align.LEFT,
+        maxWidth: Float? = null,
+    ) {
+        tp.textAlign = align
+        tp.typeface = if (bold) this.bold else Typeface.DEFAULT
+        tp.textSize = size
+        tp.color = color
+        tp.setShadowLayer(6f, 0f, 2f, 0x99000000.toInt())
+        val out = maxWidth?.let { TextUtils.ellipsize(s, tp, it, TextUtils.TruncateAt.END).toString() } ?: s
+        c.drawText(out, x, y, tp)
+        tp.clearShadowLayer()
     }
 }

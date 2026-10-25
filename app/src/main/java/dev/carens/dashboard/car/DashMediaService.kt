@@ -157,7 +157,7 @@ class DashMediaService : MediaBrowserServiceCompat() {
         val moved = mapBitmap == null || distanceMeters(mapLat, mapLon, lat, lon) > 25
         if (!moved) return
         mapJob = scope.launch {
-            val bmp = container.mapTiles.render(lat, lon, zoom = 15, size = 256, dark = true)
+            val bmp = container.mapTiles.render(lat, lon, zoom = 16, size = 512, dark = true)
             if (bmp != null) {
                 mapBitmap = bmp
                 mapLat = lat

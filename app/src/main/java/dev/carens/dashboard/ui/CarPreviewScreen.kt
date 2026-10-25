@@ -80,7 +80,7 @@ fun CarPreviewScreen(
         if (lat != null && lon != null) {
             val last = mapAt
             if (last == null || distanceMeters(last.first, last.second, lat, lon) > 25) {
-                tiles.render(lat, lon, zoom = 15, size = 256, dark = true)?.let {
+                tiles.render(lat, lon, zoom = 16, size = 512, dark = true)?.let {
                     map = it
                     mapAt = lat to lon
                 }
