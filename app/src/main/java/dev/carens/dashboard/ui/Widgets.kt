@@ -134,7 +134,13 @@ fun WidgetLabel(text: String, modifier: Modifier = Modifier) {
  * with tick marks every 20 (km/h or mph) and a big tabular number.
  */
 @Composable
-fun SpeedGauge(telemetry: DashboardTelemetry, settings: DashSettings, modifier: Modifier = Modifier) {
+fun SpeedGauge(
+    telemetry: DashboardTelemetry,
+    settings: DashSettings,
+    modifier: Modifier = Modifier,
+    /** Small round overlay: text scales with the dial and only warnings are shown. */
+    compact: Boolean = false,
+) {
     val unit = settings.unit
     val kmh = telemetry.gpsSpeedKmh
     val shown = kmh?.let { unit.fromKmh(it) }
@@ -211,25 +217,43 @@ fun SpeedGauge(telemetry: DashboardTelemetry, settings: DashSettings, modifier: 
                 fontWeight = FontWeight.Bold,
                 style = Tabular,
             )
-            Text(unit.label, fontSize = 16.sp, color = scheme.onSurfaceVariant, letterSpacing = 1.sp)
-            Spacer(Modifier.height(6.dp))
-            GpsStatus(telemetry, settings, over)
+            if (compact) {
+                Text(unit.label, fontSize = (d * 0.10f / fontScale).sp, color = scheme.onSurfaceVariant, maxLines = 1)
+                GpsStatus(telemetry, settings, over, warningsOnly = true, fontSize = (d * 0.085f / fontScale).sp)
+            } else {
+                Text(unit.label, fontSize = 16.sp, color = scheme.onSurfaceVariant, letterSpacing = 1.sp)
+                Spacer(Modifier.height(6.dp))
+                GpsStatus(telemetry, settings, over)
+            }
         }
     }
 }
 
 @Composable
-private fun GpsStatus(t: DashboardTelemetry, settings: DashSettings, over: Boolean) {
+private fun GpsStatus(
+    t: DashboardTelemetry,
+    settings: DashSettings,
+    over: Boolean,
+    warningsOnly: Boolean = false,
+    fontSize: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
+) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val (text, color) = when {
-        t.locationError != null -> "Location unavailable" to DashColors.Warning
-        !t.serviceRunning || !t.hasFix -> "Waiting for GPS…" to muted
+        t.locationError != null -> (if (warningsOnly) "No location" else "Location unavailable") to DashColors.Warning
+        !t.serviceRunning || !t.hasFix -> (if (warningsOnly) "No GPS" else "Waiting for GPS…") to muted
         t.isStale -> "GPS lost" to DashColors.Warning
-        over -> "Above ${Format.speed(settings.unit.fromKmh(settings.speedWarningKmh.toDouble()))} ${settings.unit.label}" to DashColors.Danger
+        over -> (if (warningsOnly) "Slow down" else "Above ${Format.speed(settings.unit.fromKmh(settings.speedWarningKmh.toDouble()))} ${settings.unit.label}") to DashColors.Danger
         t.gpsQuality == GpsQuality.POOR -> "Weak GPS" to DashColors.Warning
-        else -> (t.bearingDegrees?.let { "Heading ${Format.compass(it)}" } ?: "GPS speed") to muted
+        else -> if (warningsOnly) return else (t.bearingDegrees?.let { "Heading ${Format.compass(it)}" } ?: "GPS speed") to muted
     }
-    Text(text, color = color, style = MaterialTheme.typography.labelLarge)
+    Text(
+        text,
+        color = color,
+        style = MaterialTheme.typography.labelLarge,
+        fontSize = fontSize,
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+    )
 }
 
 @Composable

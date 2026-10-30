@@ -237,7 +237,7 @@ private fun MapHero(d: HomeData, imperial: Boolean, modifier: Modifier, onOpen: 
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
                 shadowElevation = 6.dp,
             ) {
-                SpeedGauge(t, d.settings, Modifier.fillMaxSize().padding(4.dp))
+                SpeedGauge(t, d.settings, Modifier.fillMaxSize().padding(4.dp), compact = true)
             }
         }
     }
