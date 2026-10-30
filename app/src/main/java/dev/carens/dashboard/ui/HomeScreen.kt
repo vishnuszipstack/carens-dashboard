@@ -60,6 +60,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -120,29 +121,26 @@ fun HomeScreen(d: HomeData, music: MusicActions, a: HomeActions) {
     BoxWithConstraints(Modifier.fillMaxSize().padding(Gap)) {
         val landscape = maxWidth > maxHeight
         val tiles = @Composable { m: Modifier -> TileRow(d, tripActive, onTrip, a, m) }
+        // The map takes 70% of the screen; the speed gauge rides on top of it.
         if (landscape) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                SpeedCard(d, Modifier.weight(0.3f).fillMaxHeight(), a.openTrips)
-                Column(Modifier.weight(0.7f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(Gap)) {
-                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                        MapHero(d, imperial, Modifier.weight(0.62f).fillMaxHeight(), a.openMap)
-                        Column(Modifier.weight(0.38f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(Gap)) {
-                            ClockWeatherCard(d.weather, d.place, Modifier.weight(1.1f).fillMaxWidth())
-                            MusicCard(d.nowPlaying, d.musicAccess, music, Modifier.weight(0.9f).fillMaxWidth(), a.openMusic)
-                        }
-                    }
-                    tiles(Modifier.fillMaxWidth().height(92.dp))
+                MapHero(d, imperial, Modifier.weight(0.7f).fillMaxHeight(), a.openMap, a.openTrips)
+                Column(Modifier.weight(0.3f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(Gap)) {
+                    ClockWeatherCard(d.weather, d.place, Modifier.weight(1f).fillMaxWidth())
+                    MusicCard(d.nowPlaying, d.musicAccess, music, Modifier.weight(1f).fillMaxWidth(), a.openMusic)
+                    tiles(Modifier.fillMaxWidth().height(84.dp))
                 }
             }
         } else {
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Gap)) {
-                Row(Modifier.fillMaxWidth().weight(0.55f), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                    SpeedCard(d, Modifier.weight(1f).fillMaxHeight(), a.openTrips, compact = true)
-                    ClockWeatherCard(d.weather, d.place, Modifier.weight(1f).fillMaxHeight())
+                MapHero(d, imperial, Modifier.weight(0.7f).fillMaxWidth(), a.openMap, a.openTrips)
+                Column(Modifier.weight(0.3f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Gap)) {
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Gap)) {
+                        ClockWeatherCard(d.weather, d.place, Modifier.weight(1f).fillMaxHeight())
+                        MusicCard(d.nowPlaying, d.musicAccess, music, Modifier.weight(1f).fillMaxHeight(), a.openMusic)
+                    }
+                    tiles(Modifier.fillMaxWidth().height(84.dp))
                 }
-                MapHero(d, imperial, Modifier.weight(1f).fillMaxWidth(), a.openMap)
-                MusicCard(d.nowPlaying, d.musicAccess, music, Modifier.fillMaxWidth().height(132.dp), a.openMusic)
-                tiles(Modifier.fillMaxWidth().height(92.dp))
             }
         }
     }
@@ -158,54 +156,15 @@ fun HomeScreen(d: HomeData, music: MusicActions, a: HomeActions) {
     }
 }
 
-// --- Speed & trip -----------------------------------------------------------------------
-
-@Composable
-private fun SpeedCard(d: HomeData, modifier: Modifier, onTrips: () -> Unit, compact: Boolean = false) {
-    val u = d.settings.unit
-    val trip = d.telemetry.trip
-    WidgetCard(modifier, onClick = onTrips, padding = 14.dp) {
-        SpeedGauge(d.telemetry, d.settings, Modifier.weight(1f).fillMaxWidth())
-        if (!compact) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth()) {
-                val dur = trip?.let { Format.durationParts(it.elapsedMs) }
-                MiniStat(trip?.let { Format.distance(it.distanceM, u) } ?: "—", u.distanceLabel, Modifier.weight(1f))
-                MiniStat(dur?.first ?: "—", dur?.second ?: "time", Modifier.weight(1f))
-                MiniStat(trip?.avgMovingKmh?.let { Format.speed(u.fromKmh(it)) } ?: "—", "avg", Modifier.weight(1f))
-                MiniStat(trip?.maxSpeedKmh?.takeIf { it > 0 }?.let { Format.speed(u.fromKmh(it)) } ?: "—", "max", Modifier.weight(1f))
-            }
-            Text(
-                when {
-                    trip == null -> "Trip starts automatically"
-                    trip.autoStarted -> "Recording trip · auto"
-                    else -> "Recording trip"
-                },
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiniStat(value: String, label: String, modifier: Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, style = Tabular, maxLines = 1)
-        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-    }
-}
-
 // --- Map --------------------------------------------------------------------------------
 
 @Composable
-private fun MapHero(d: HomeData, imperial: Boolean, modifier: Modifier, onOpen: () -> Unit) {
+private fun MapHero(d: HomeData, imperial: Boolean, modifier: Modifier, onOpen: () -> Unit, onSpeed: () -> Unit) {
     val t = d.telemetry
     val pos = t.latitude?.let { LatLon(it, t.longitude!!) }
     WidgetCard(modifier, padding = 0.dp) {
-        Box(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val gaugeSize = (minOf(maxWidth, maxHeight) * 0.38f).coerceIn(110.dp, 200.dp)
             if (d.settings.showMap) {
                 OsmMap(
                     position = pos,
@@ -268,6 +227,17 @@ private fun MapHero(d: HomeData, imperial: Boolean, modifier: Modifier, onOpen: 
                         fontSize = 17.sp,
                     )
                 }
+            }
+
+            // Speed rides on the map, bottom-right; tap for trips.
+            Surface(
+                modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).size(gaugeSize)
+                    .clip(CircleShape).clickable(onClick = onSpeed),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                shadowElevation = 6.dp,
+            ) {
+                SpeedGauge(t, d.settings, Modifier.fillMaxSize().padding(4.dp))
             }
         }
     }
