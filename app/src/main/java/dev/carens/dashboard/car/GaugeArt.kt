@@ -41,12 +41,16 @@ data class DashArtModel(
  *   │ 7:11 PM          ☁ 26°   │   (next-turn banner while navigating)
  *   │          ▲ you           │
  *   │   map fills the square   │
- *   │ (42)          Vattamkulam│
+ *   │ (42)         Vattamkulam │
  *   └──────────────────────────┘
  * Trip and song stay in the text lines next to the picture.
  */
 object GaugeArt {
     const val SIZE = 512
+
+    /** Speed bubble size relative to the original 96 px radius design. */
+    private const val SPEED_RADIUS = 96f
+    private const val SPEED_SCALE = 0.7f
 
     private val bg = Color.parseColor("#05070A")
     private val panel = Color.parseColor("#11161D")
@@ -106,8 +110,10 @@ object GaugeArt {
             if (wx.isNotBlank()) text(c, wx, SIZE - 24f, 72f, 44f, text, bold = true, align = Paint.Align.RIGHT)
         }
 
-        // 4. Bottom-left: big speed bubble.
-        drawSpeed(c, m, cx = 112f, cy = SIZE - 112f, radius = 96f)
+        // 4. Bottom-left: speed bubble, kept compact so the map stays visible.
+        val r0 = SPEED_RADIUS * SPEED_SCALE
+        val margin = 16f
+        drawSpeed(c, m, cx = margin + r0, cy = SIZE - margin - r0, radius = r0, k = SPEED_SCALE)
 
         // 5. Bottom-right: clock while navigating, else where you are.
         val right = if (nav != null) {
@@ -116,7 +122,7 @@ object GaugeArt {
             m.placeLine
         }
         if (!right.isNullOrBlank()) {
-            val maxW = SIZE - 240f - 24f
+            val maxW = SIZE - (margin + 2 * r0 + 24f) - 24f - 28f
             tp.textSize = 30f
             tp.typeface = bold
             val fitted = TextUtils.ellipsize(right, tp, maxW, TextUtils.TruncateAt.END).toString()
@@ -129,11 +135,13 @@ object GaugeArt {
         return bmp
     }
 
-    private fun drawSpeed(c: Canvas, m: DashArtModel, cx: Float, cy: Float, radius: Float) {
+    /** [k] scales everything inside the bubble together with its [radius]. */
+    private fun drawSpeed(c: Canvas, m: DashArtModel, cx: Float, cy: Float, radius: Float, k: Float) {
         fill.color = 0xEE0B1017.toInt()
         c.drawCircle(cx, cy, radius, fill)
-        val ring = RectF(cx - radius + 12f, cy - radius + 12f, cx + radius - 12f, cy + radius - 12f)
-        arcPaint.strokeWidth = 12f
+        val inset = 12f * k
+        val ring = RectF(cx - radius + inset, cy - radius + inset, cx + radius - inset, cy + radius - inset)
+        arcPaint.strokeWidth = 12f * k
         arcPaint.color = track
         c.drawArc(ring, 135f, 270f, false, arcPaint)
         if (m.speed != null && m.fraction > 0f) {
@@ -145,15 +153,19 @@ object GaugeArt {
             m.over -> danger
             else -> text
         }
-        text(c, m.speed?.toString() ?: "--", cx, cy + 22f, 72f, numColor, bold = true, align = Paint.Align.CENTER)
-        text(c, m.unitLabel, cx, cy + 58f, 22f, muted, bold = false, align = Paint.Align.CENTER)
+        text(c, m.speed?.toString() ?: "--", cx, cy + 22f * k, 72f * k, numColor, bold = true, align = Paint.Align.CENTER)
+        text(c, m.unitLabel, cx, cy + 58f * k, 22f * k, muted, bold = false, align = Paint.Align.CENTER)
         m.status?.let {
-            tp.textSize = 24f
+            // Warnings stay readable: shrink less than the bubble, and anchor to the left edge.
+            val size = 22f
+            tp.textSize = size
+            tp.typeface = bold
             val w = tp.measureText(it)
-            val r = RectF(cx - w / 2 - 14f, cy - radius - 46f, cx + w / 2 + 14f, cy - radius - 10f)
+            val left = (cx - w / 2 - 12f).coerceAtLeast(8f)
+            val r = RectF(left, cy - radius - 40f, left + w + 24f, cy - radius - 8f)
             fill.color = 0xE0000000.toInt()
-            c.drawRoundRect(r, 14f, 14f, fill)
-            text(c, it, cx, r.bottom - 10f, 24f, warn, bold = true, align = Paint.Align.CENTER)
+            c.drawRoundRect(r, 12f, 12f, fill)
+            text(c, it, r.centerX(), r.bottom - 9f, size, warn, bold = true, align = Paint.Align.CENTER)
         }
     }
 

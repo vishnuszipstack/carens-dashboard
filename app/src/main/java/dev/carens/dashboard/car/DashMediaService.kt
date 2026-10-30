@@ -82,6 +82,8 @@ class DashMediaService : MediaBrowserServiceCompat() {
     private var mapLat = 0.0
     private var mapLon = 0.0
     private var mapJob: Job? = null
+    private var mapJobStartMs = -MAP_MIN_INTERVAL_MS
+    private var lastServiceStartMs = -SERVICE_RETRY_MS
 
     override fun onCreate() {
         super.onCreate()
@@ -91,7 +93,8 @@ class DashMediaService : MediaBrowserServiceCompat() {
         }
         sessionToken = session.sessionToken
 
-        TelemetryHub.carVisible.value = true
+        TelemetryHub.carMediaVisible.value = true
+        lastServiceStartMs = SystemClock.elapsedRealtime()
         serviceStarted = DrivingService.start(this)
         container.music.refresh()
 
@@ -109,9 +112,7 @@ class DashMediaService : MediaBrowserServiceCompat() {
                     weather = snap.w
                     place = snap.p
                     music = snap.m
-                    if (!serviceStarted && LocationPermissions.hasPrecise(this@DashMediaService)) {
-                        serviceStarted = DrivingService.start(this@DashMediaService)
-                    }
+                    ensureDrivingService()
                     maybeUpdateMap()
                     publish()
                 }
@@ -122,10 +123,14 @@ class DashMediaService : MediaBrowserServiceCompat() {
                 publish()
             }
         }
-        // The clock and "GPS lost" state change even when nothing is emitted.
+        // The clock and "GPS lost" state change even when nothing is emitted. This loop
+        // is also the watchdog: it brings GPS back if the phone stopped it, and unsticks
+        // the map if a tile download hung.
         scope.launch {
             while (isActive) {
-                delay(15_000)
+                delay(WATCHDOG_MS)
+                ensureDrivingService()
+                maybeUpdateMap()
                 publish()
             }
         }
@@ -133,7 +138,7 @@ class DashMediaService : MediaBrowserServiceCompat() {
     }
 
     override fun onDestroy() {
-        TelemetryHub.carVisible.value = false
+        TelemetryHub.carMediaVisible.value = false
         scope.cancel()
         session.isActive = false
         session.release()
@@ -148,14 +153,34 @@ class DashMediaService : MediaBrowserServiceCompat() {
         val m: NowPlaying?,
     )
 
+    /**
+     * GPS comes from [DrivingService]. The phone can stop it (idle shutdown, battery
+     * savers on some phones), so restart it whenever it isn't publishing — not just once.
+     */
+    private fun ensureDrivingService() {
+        if (telemetry.serviceRunning) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastServiceStartMs < SERVICE_RETRY_MS) return
+        if (!LocationPermissions.hasPrecise(this)) return
+        lastServiceStartMs = now
+        serviceStarted = DrivingService.start(this)
+    }
+
     // --- Mini-map --------------------------------------------------------------
 
     private fun maybeUpdateMap() {
         val lat = telemetry.latitude ?: return
         val lon = telemetry.longitude ?: return
-        if (mapJob?.isActive == true) return
+        val now = SystemClock.elapsedRealtime()
+        if (mapJob?.isActive == true) {
+            // A render should take seconds; if it's been stuck much longer, start over.
+            if (now - mapJobStartMs < MAP_JOB_STUCK_MS) return
+            mapJob?.cancel()
+        }
+        if (now - mapJobStartMs < MAP_MIN_INTERVAL_MS) return
         val moved = mapBitmap == null || distanceMeters(mapLat, mapLon, lat, lon) > 25
         if (!moved) return
+        mapJobStartMs = now
         mapJob = scope.launch {
             val bmp = container.mapTiles.render(lat, lon, zoom = 16, size = 512, dark = true)
             if (bmp != null) {
@@ -163,9 +188,8 @@ class DashMediaService : MediaBrowserServiceCompat() {
                 mapLat = lat
                 mapLon = lon
                 lastArtKey = null // force a redraw with the new map
-                publish()
+                publish(force = true)
             }
-            delay(4_000) // at most one map refresh every few seconds
         }
     }
 
@@ -395,6 +419,11 @@ class DashMediaService : MediaBrowserServiceCompat() {
 
     private companion object {
         const val ART_PX = 400
+
+        const val WATCHDOG_MS = 5_000L
+        const val SERVICE_RETRY_MS = 10_000L
+        const val MAP_MIN_INTERVAL_MS = 3_000L
+        const val MAP_JOB_STUCK_MS = 30_000L
 
         const val ROOT_ID = "root"
         const val LIVE_ID = "live"
